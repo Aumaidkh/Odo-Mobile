@@ -52,6 +52,7 @@ val paywallModule = module {
             trigger = trigger,
             amountPaise = amountPaise,
             freeScans = freeScans,
+            reviewPrompter = get(),
         )
     }
 }

@@ -1,5 +1,7 @@
 package com.hopcape.odo.infrastructure.database
 
+import com.hopcape.odo.infrastructure.database.reminder.SqlDelightDeclaredExpiryLocalDataSource
+import com.hopcape.odo.core.data.reminder.DeclaredExpiryLocalDataSource
 import app.cash.sqldelight.db.SqlDriver
 import com.hopcape.analytics.api.AnalyticsEventStore
 import com.hopcape.logging.api.DiagnosticRequests
@@ -52,6 +54,8 @@ import com.hopcape.odo.infrastructure.database.cost.FuelFillSyncable
 import com.hopcape.odo.infrastructure.database.car.SqlDelightCarLocalDataSource
 import com.hopcape.odo.infrastructure.database.car.UnlistedVehicleReporterImpl
 import com.hopcape.odo.infrastructure.database.car.VehicleCatalogImpl
+import com.hopcape.odo.infrastructure.database.setup.SqlDelightSetupDraftRepository
+import com.hopcape.odo.core.domain.setup.SetupDraftRepository
 import com.hopcape.odo.infrastructure.database.car.VehicleCatalogRefresher
 import com.hopcape.odo.infrastructure.database.car.VehicleCatalogSubmissionSyncTable
 import com.hopcape.odo.infrastructure.database.car.VehicleCatalogSubmissionSyncable
@@ -120,6 +124,11 @@ import com.hopcape.odo.infrastructure.database.trip.TripSyncTable
 import com.hopcape.odo.infrastructure.database.trip.TripSyncable
 import org.koin.dsl.bind
 import org.koin.dsl.module
+
+/** Keeps the local make/model cache current. The app refreshes it on foreground, never here. */
+internal val vehicleCatalogRefresherModule = module {
+    single { VehicleCatalogRefresher(database = get(), remote = get(), telemetry = get()) }
+}
 
 /**
  * The SQLDelight database and the local-data-source adapters that implement the ports
@@ -349,6 +358,7 @@ val databaseInfrastructureModule = module {
     // Custom reminders + dismissals. The derived reminders have no rows — the feed
     // recomputes them — so this table only carries what cannot be recomputed.
     single<ReminderLocalDataSource> { SqlDelightReminderLocalDataSource(database = get(), telemetry = get()) }
+    single<DeclaredExpiryLocalDataSource> { SqlDelightDeclaredExpiryLocalDataSource(database = get()) }
     single {
         ReminderSyncable(
             runner = SyncRunner(
@@ -417,15 +427,9 @@ val databaseInfrastructureModule = module {
     single<DiagnosticRequests> { SqlDelightDiagnosticRequests(database = get(), clock = get()) }
 
     single<VehicleCatalog> { VehicleCatalogImpl(database = get()) }
+    single<SetupDraftRepository> { SqlDelightSetupDraftRepository(database = get(), logger = get(), tracer = get()) }
 
-    // Keeps the local make/model cache above current with the shared Supabase catalog.
-    // `createdAtStart` so the pull kicks off at launch rather than waiting for someone to
-    // open a car picker first; `refreshInBackground()` returns immediately regardless, so
-    // this never delays anything else Koin resolves at startup.
-    single(createdAtStart = true) {
-        VehicleCatalogRefresher(database = get(), remote = get(), telemetry = get())
-            .also { it.refreshInBackground() }
-    }
+    includes(vehicleCatalogRefresherModule)
 
     // The client half of "my car isn't listed" — writes locally first (like every other
     // pre-auth-safe table) and asks for a sync; VehicleCatalogSubmissionSyncable below is

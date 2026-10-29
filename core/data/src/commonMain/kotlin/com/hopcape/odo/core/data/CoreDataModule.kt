@@ -1,5 +1,11 @@
 package com.hopcape.odo.core.data
 
+import com.hopcape.odo.core.platform.notification.ServiceDueReminderScheduler
+import com.hopcape.odo.core.domain.reminder.repository.DeclaredExpiryRepository
+import com.hopcape.odo.core.data.reminder.DeclaredExpiryRepositoryImpl
+import com.hopcape.odo.core.platform.review.ReviewPrompter
+import com.hopcape.odo.core.platform.review.NoopReviewPrompter
+import com.hopcape.odo.core.platform.notification.DriveSummaryNotifier
 import com.hopcape.odo.core.data.appstatus.AlwaysAvailableAppStatusSource
 import com.hopcape.odo.core.data.support.BuiltInSupportContacts
 import com.hopcape.odo.core.domain.support.SupportContacts
@@ -211,6 +217,10 @@ val coreDataModule = module {
     // change, and the platform module binds the scheduler that delivers them.
     single<DocumentReminderScheduler> { NoopDocumentReminderScheduler() }
     single<CustomReminderScheduler> { NoopCustomReminderScheduler() }
+    single<ServiceDueReminderScheduler> { ServiceDueReminderScheduler { } }
+    // Replaced on Android by Play In-App Review.
+    single<ReviewPrompter> { NoopReviewPrompter }
+    single<DriveSummaryNotifier> { DriveSummaryNotifier { } }
 
     // Whether a run may happen at all, and whether this install's rows belong to the
     // account yet. Asking for a token rather than a boolean refreshes a stale one on the
@@ -236,7 +246,16 @@ val coreDataModule = module {
     // synced here but whose bytes never did.
     single { BlobDownloader(files = get(), storage = get(), telemetry = get()) }
 
-    single { ServiceLogRepositoryImpl(local = get(), telemetry = get(), scheduler = get()) }
+    single {
+        // Resolved at call time: the scheduler reads this repository, so building it here loops.
+        val scope = this
+        ServiceLogRepositoryImpl(
+            local = get(),
+            telemetry = get(),
+            scheduler = get(),
+            serviceReminders = ServiceDueReminderScheduler { scope.get<ServiceDueReminderScheduler>().refresh() },
+        )
+    }
     single<ServiceLogRepository> { get<ServiceLogRepositoryImpl>() }
     single { DocumentRepositoryImpl(local = get(), telemetry = get(), scheduler = get()) }
     single<DocumentRepository> { get<DocumentRepositoryImpl>() }
@@ -263,6 +282,7 @@ val coreDataModule = module {
         ReminderRepositoryImpl(local = get(), telemetry = get(), scheduler = get(), ids = get(), owners = get())
     }
     single<ReminderRepository> { get<ReminderRepositoryImpl>() }
+    single<DeclaredExpiryRepository> { DeclaredExpiryRepositoryImpl(local = get(), telemetry = get(), scheduler = get()) }
     // The owner's city, read from their profile — null until they set it, which is what
     // keeps fairness silent rather than guessing.
     single<CurrentCityProvider> { ProfileCityProvider(local = get(), telemetry = get()) }

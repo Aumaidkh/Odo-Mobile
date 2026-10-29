@@ -1,6 +1,6 @@
 package com.hopcape.odo.feature.questionnaire
 
-import com.hopcape.odo.core.designsystem.icons.IcCurrencyDollar
+import com.hopcape.odo.core.designsystem.icons.IcRupee
 import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
 import com.hopcape.odo.core.designsystem.icons.IcTagFilled
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
@@ -45,7 +45,7 @@ private val GoalQuestion = Question(
     options = listOf(
         // The card and the stored value differ on purpose: the copy is goal-shaped while
         // OnboardingGoal is storage-shaped. Re-wording a card must not touch stored data.
-        option(OnboardingGoal.TRACK_COSTS, Res.string.qn_goal_overpay, IcCurrencyDollar),
+        option(OnboardingGoal.TRACK_COSTS, Res.string.qn_goal_overpay, IcRupee),
         option(OnboardingGoal.NEVER_MISS_RENEWAL, Res.string.qn_goal_healthy, IcSpeedometer),
         option(OnboardingGoal.SELL_SOON, Res.string.qn_goal_resale, IcTagFilled),
     ),

@@ -1,5 +1,6 @@
 package com.hopcape.odo.core.domain.reminder.analysis
 
+import com.hopcape.odo.core.domain.reminder.model.DeclaredExpiry
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.model.DocumentId
@@ -35,7 +36,34 @@ class ReminderFeedPolicyTest {
         customs: List<CustomReminder> = emptyList(),
         dismissals: List<ReminderDismissal> = emptyList(),
         currentKm: Int? = null,
-    ) = ReminderFeedPolicy.feedFor(documents, serviceStatus, customs, dismissals, today, currentKm)
+        declared: List<DeclaredExpiry> = emptyList(),
+    ) = ReminderFeedPolicy.feedFor(documents, serviceStatus, customs, dismissals, today, currentKm, declared)
+
+    private fun declaredInsurance(dueOn: LocalDate) =
+        DeclaredExpiry("dec-1", CarId("car-1"), OwnerId("owner-1"), ReminderKind.INSURANCE_EXPIRY, dueOn)
+
+    @Test
+    fun aDeclaredInsuranceExpiry_isARenewalRow() {
+        val rows = feed(declared = listOf(declaredInsurance(today.plus(20, DateTimeUnit.DAY)))).upcoming
+        val row = assertIs<UpcomingReminder.DeclaredRenewal>(rows.single())
+        assertEquals(ReminderUrgency.DUE_SOON, row.urgency)
+        assertEquals(20, row.daysLeft)
+    }
+
+    @Test
+    fun aFiledInsuranceWithAnExpiry_replacesTheDeclaredOne() {
+        val rows = feed(
+            documents = listOf(document(expiresOn = today.plus(200, DateTimeUnit.DAY))),
+            declared = listOf(declaredInsurance(today.plus(20, DateTimeUnit.DAY))),
+        ).let { it.thisWeek + it.upcoming }
+        assertTrue(rows.none { it is UpcomingReminder.DeclaredRenewal })
+    }
+
+    @Test
+    fun aPassedDeclaredExpiry_yieldsNoRow() {
+        val feed = feed(declared = listOf(declaredInsurance(today.plus(-1, DateTimeUnit.DAY))))
+        assertTrue(feed.thisWeek.isEmpty() && feed.upcoming.isEmpty())
+    }
 
     private fun document(
         type: DocumentType = DocumentType.INSURANCE,

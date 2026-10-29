@@ -16,13 +16,18 @@ interface VehicleCatalog {
     suspend fun makes(): List<String>
 
     /**
-     * The handful of brands offered as one-tap chips above the full list.
+     * The first [limit] brands of [makes], offered as one-tap choices.
      *
-     * A prefix of [makes] rather than a separately curated set: the catalog is already
-     * ordered by market share, so "popular" and "listed first" are the same fact — and
-     * keeping one ordering means they can never disagree.
+     * A prefix rather than a curated set: the catalog is ordered by market share, so
+     * "popular" and "listed first" are the same fact.
      */
-    suspend fun popularMakes(): List<String>
+    suspend fun popularMakes(limit: Int): List<String>
+
+    /**
+     * Logo locations by make name, as Storage paths. Makes without a logo are absent.
+     * Defaulted so catalogs that have no logos need not implement it.
+     */
+    suspend fun makeLogoPaths(): Map<String, String> = emptyMap()
 
     /** Selectable models (with trims) for [make], in display order; empty if the make is unknown. */
     suspend fun models(make: String): List<CarModel>

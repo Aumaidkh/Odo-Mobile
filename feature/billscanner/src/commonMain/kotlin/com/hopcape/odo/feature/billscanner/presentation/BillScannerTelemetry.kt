@@ -5,15 +5,17 @@ import arrow.core.EitherNel
 import arrow.core.NonEmptyList
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.logging.api.Logger
+import com.hopcape.logging.api.TraceContext as LogTrace
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.scan.model.ExtractedBill
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.shared.code
+import com.hopcape.odo.core.domain.shared.failureCode
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
+import com.hopcape.performance.api.TraceContext as PerfTrace
 import com.hopcape.performance.api.currentTraceContext
 import kotlin.coroutines.CoroutineContext
-import com.hopcape.logging.api.TraceContext as LogTrace
-import com.hopcape.performance.api.TraceContext as PerfTrace
 
 /**
  * All observability for the bill scanner, behind intent-named methods, so the ViewModels read
@@ -24,7 +26,7 @@ import com.hopcape.performance.api.TraceContext as PerfTrace
  * photo taken, an extraction returned with its confidence, and a bill saved. The drop-off
  * between any two of those is what tells us which step is broken.
  *
- * **No PII.** Counts, types, confidence numbers, booleans and error *type* names only — never
+ * **No PII.** Counts, types, confidence numbers, booleans and error codes only — never
  * a workshop name, an amount, an odometer reading or a photo.
  *
  * Every method is fire-and-forget: nothing returns a decision, and the wrapping methods hand
@@ -52,7 +54,14 @@ internal class BillScannerTelemetry(
         logger.info(TAG, Event.CAMERA_PERMISSION_ANSWERED, tc = flowTrace.toLog(), fields = fields)
     }
 
-    /** The owner declined, which ends the scan: there is no viewfinder without the camera. */
+    /** The rationale was shown. [blocked] means the system will no longer prompt. */
+    fun cameraRationaleShown(blocked: Boolean) {
+        val fields = mapOf(Key.BLOCKED to blocked)
+        analytics.track(Event.CAMERA_RATIONALE_SHOWN, fields)
+        logger.info(TAG, Event.CAMERA_RATIONALE_SHOWN, tc = flowTrace.toLog(), fields = fields)
+    }
+
+    /** The owner declined, by "Not now" or the system prompt. The gallery state follows. */
     fun cameraDeclined() {
         analytics.track(Event.CAMERA_DECLINED)
         logger.info(TAG, Event.CAMERA_DECLINED, tc = flowTrace.toLog())
@@ -66,7 +75,7 @@ internal class BillScannerTelemetry(
      * ViewModel's scope down with it.
      */
     fun readFailed(source: String, cause: Throwable) {
-        val fields = mapOf(Key.SOURCE to source, Key.REASON to (cause::class.simpleName ?: UNKNOWN))
+        val fields = mapOf(Key.SOURCE to source, Key.REASON to failureCode(cause))
         analytics.track(Event.READ_FAILED, fields)
         logger.error(TAG, Event.READ_FAILED, tc = flowTrace.toLog(), fields = fields)
     }
@@ -100,8 +109,9 @@ internal class BillScannerTelemetry(
      * viewfinder, and how often that happens decides whether the camera is even the primary
      * path. The picked file's reference is never recorded — it names a file on the device.
      */
-    fun galleryOpened(target: String) {
-        val fields = mapOf(Key.TARGET to target)
+    /** [source] is a [GallerySource] value: where the gallery was opened from. */
+    fun galleryOpened(target: String, source: String) {
+        val fields = mapOf(Key.TARGET to target, Key.SOURCE to source)
         analytics.track(Event.GALLERY_OPENED, fields)
         logger.info(TAG, Event.GALLERY_OPENED, tc = flowTrace.toLog(), fields = fields)
     }
@@ -172,7 +182,7 @@ internal class BillScannerTelemetry(
         result.fold(
             ifLeft = { error ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                val fields = mapOf(Key.ERRORS to error.typeName())
+                val fields = mapOf(Key.ERRORS to error.code())
                 analytics.track(Event.EXTRACTION_FAILED, fields)
                 logger.error(TAG, Event.EXTRACTION_FAILED, tc = currentTraceContext().toLog(), fields = fields)
             },
@@ -210,7 +220,7 @@ internal class BillScannerTelemetry(
         result.fold(
             ifLeft = { error ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                val fields = mapOf(Key.ERRORS to error.typeName())
+                val fields = mapOf(Key.ERRORS to error.code())
                 analytics.track(Event.EXTRACTION_FAILED, fields)
                 logger.error(TAG, Event.EXTRACTION_FAILED, tc = currentTraceContext().toLog(), fields = fields)
             },
@@ -235,7 +245,7 @@ internal class BillScannerTelemetry(
         result.fold(
             ifLeft = { error ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                val fields = mapOf(Key.ERRORS to error.typeName())
+                val fields = mapOf(Key.ERRORS to error.code())
                 analytics.track(Event.EXTRACTION_FAILED, fields)
                 logger.error(TAG, Event.EXTRACTION_FAILED, tc = currentTraceContext().toLog(), fields = fields)
             },
@@ -259,7 +269,7 @@ internal class BillScannerTelemetry(
         result.fold(
             ifLeft = { errors ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                val fields = mapOf(Key.ERRORS to errors.typeNames())
+                val fields = mapOf(Key.ERRORS to errors.errorCodes())
                 analytics.track(Event.SAVE_FAILED, fields)
                 logger.error(TAG, Event.SAVE_FAILED, tc = currentTraceContext().toLog(), fields = fields)
             },
@@ -283,7 +293,7 @@ internal class BillScannerTelemetry(
         result.fold(
             ifLeft = { errors ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                val failure = fields + (Key.ERRORS to errors.typeNames())
+                val failure = fields + (Key.ERRORS to errors.errorCodes())
                 analytics.track(Event.SAVE_FAILED, failure)
                 logger.error(TAG, Event.SAVE_FAILED, tc = currentTraceContext().toLog(), fields = failure)
             },
@@ -327,14 +337,12 @@ internal class BillScannerTelemetry(
     private fun PerfTrace.toLog(): LogTrace =
         LogTrace(sessionId = sessionId, flowId = flowId, traceId = traceId)
 
-    private fun DomainError.typeName(): String = this::class.simpleName ?: UNKNOWN
 
-    private fun NonEmptyList<DomainError>.typeNames(): String = joinToString(",") { it.typeName() }
+    private fun NonEmptyList<DomainError>.errorCodes(): String = joinToString(",") { it.code() }
 
     private companion object {
         const val TAG = "BILLSCANNER"
         const val FLOW = "billscanner"
-        const val UNKNOWN = "Unknown"
     }
 
     /**
@@ -359,6 +367,7 @@ internal class BillScannerTelemetry(
     object Event {
         const val CAMERA_PERMISSION_ANSWERED = "scanner_camera_permission_answered"
         const val CAMERA_DECLINED = "scanner_camera_declined"
+        const val CAMERA_RATIONALE_SHOWN = "scanner_camera_rationale_shown"
         const val READ_FAILED = "scanner_read_failed"
         const val SCANNER_OPENED = "scanner_opened"
         const val QUOTA_TAPPED = "scanner_quota_tapped"
@@ -412,6 +421,7 @@ internal class BillScannerTelemetry(
         const val TYPE = "type"
         const val ORIGIN = "origin"
         const val QR_HAS_AMOUNT = "qr_has_amount"
+        const val BLOCKED = "blocked"
     }
 
     /** Values for [Key.SOURCE] when it names what was being read. */
@@ -422,5 +432,12 @@ internal class BillScannerTelemetry(
     /** Values for [Key.OUTCOME]. */
     object Outcome {
         const val FAILED = "failed"
+    }
+
+    /** The values [Key.SOURCE] takes on `scanner_gallery_opened`. */
+    object GallerySource {
+        const val RATIONALE = "rationale"
+        const val DENIED = "denied"
+        const val VIEWFINDER = "viewfinder"
     }
 }

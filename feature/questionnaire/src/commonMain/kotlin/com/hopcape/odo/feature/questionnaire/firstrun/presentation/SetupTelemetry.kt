@@ -6,6 +6,7 @@ import arrow.core.NonEmptyList
 import arrow.core.nonEmptyListOf
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.logging.api.Logger
+import com.hopcape.logging.api.TraceContext as LogTrace
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.car.catalog.CarModel
 import com.hopcape.odo.core.domain.car.model.Car
@@ -13,15 +14,15 @@ import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.shared.code
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.CatalogOptions
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.Loadable
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingStep
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
+import com.hopcape.performance.api.TraceContext as PerfTrace
 import com.hopcape.performance.api.currentTraceContext
 import kotlin.coroutines.CoroutineContext
-import com.hopcape.logging.api.TraceContext as LogTrace
-import com.hopcape.performance.api.TraceContext as PerfTrace
 
 /**
  * All observability for first-run setup, behind intent-named methods — so the ViewModels read
@@ -38,7 +39,7 @@ import com.hopcape.performance.api.TraceContext as PerfTrace
  *    `suspend` methods then read [currentTraceContext] themselves, so a span's traceId and its
  *    log lines match that op without the caller threading anything.
  *
- * **Only non-PII context is emitted** — make, fuel, goal, step, counts, and error *type* names.
+ * **Only non-PII context is emitted** — make, fuel, goal, step, counts, and error codes.
  * Never a registration number, an owner's name, or an odometer reading: a plate identifies a
  * person's car and a reading is resale-relevant, and neither belongs in an analytics warehouse.
  * Instrumentation stays at this presentation layer; `:core:domain` remains framework-free.
@@ -67,33 +68,124 @@ internal class SetupTelemetry(
         logger.info(TAG, Event.STARTED, tc = flowTrace.toLog())
     }
 
-    fun stepAdvanced(from: OnboardingStep) {
-        analytics.track(Event.STEP_ADVANCED, mapOf(Key.STEP to from.name))
-        logger.info(TAG, Event.STEP_ADVANCED, tc = flowTrace.toLog(), fields = mapOf(Key.STEP to from.name))
+    fun stepAdvanced(from: OnboardingStep) = stepAdvanced(from.name)
+
+    /** [step] is the step being left, as its event name (`model`, `year_fuel` on v2). */
+    fun stepAdvanced(step: String) {
+        analytics.track(Event.STEP_ADVANCED, mapOf(Key.STEP to step))
+        logger.info(TAG, Event.STEP_ADVANCED, tc = flowTrace.toLog(), fields = mapOf(Key.STEP to step))
     }
 
-    fun stepBack(from: OnboardingStep) {
-        logger.debug(TAG, Event.STEP_BACK, tc = flowTrace.toLog(), fields = mapOf(Key.STEP to from.name))
+    fun stepBack(from: OnboardingStep) = stepBack(from.name)
+
+    fun stepBack(step: String) {
+        analytics.track(Event.STEP_BACK, mapOf(Key.STEP to step))
+        logger.debug(TAG, Event.STEP_BACK, tc = flowTrace.toLog(), fields = mapOf(Key.STEP to step))
+    }
+
+    /** A v2 step came on screen, including on the way back. [step] is a [Step] value. */
+    fun stepShown(step: String) {
+        analytics.track(Event.STEP_SHOWN, mapOf(Key.STEP to step))
+        logger.debug(TAG, Event.STEP_SHOWN, tc = flowTrace.toLog(), fields = mapOf(Key.STEP to step))
+    }
+
+    /** A model was picked. [source] is a [ModelSource] value. */
+    fun modelChosen(source: String) {
+        analytics.track(Event.MODEL_CHOSEN, mapOf(Key.SOURCE to source))
+        logger.info(TAG, Event.MODEL_CHOSEN, tc = flowTrace.toLog(), fields = mapOf(Key.SOURCE to source))
+    }
+
+    /** "Can't find your car?" opened the full model list. */
+    fun modelSearchOpened() {
+        analytics.track(Event.MODEL_SEARCH_OPENED)
+        logger.info(TAG, Event.MODEL_SEARCH_OPENED, tc = flowTrace.toLog())
+    }
+
+    /** The model list closed without a pick. */
+    fun modelSearchDismissed() {
+        analytics.track(Event.MODEL_SEARCH_DISMISSED)
+        logger.info(TAG, Event.MODEL_SEARCH_DISMISSED, tc = flowTrace.toLog())
+    }
+
+    /** "Change" on the Model step, back to the make grid. */
+    fun changeMakeClicked() {
+        analytics.track(Event.CHANGE_MAKE_CLICKED)
+        logger.info(TAG, Event.CHANGE_MAKE_CLICKED, tc = flowTrace.toLog())
+    }
+
+    /** "Older" opened the year wheel. */
+    fun olderYearsOpened() {
+        analytics.track(Event.YEAR_OLDER_OPENED)
+        logger.debug(TAG, Event.YEAR_OLDER_OPENED, tc = flowTrace.toLog())
+    }
+
+    /** A year was tapped. [source] is a [YearSource] value; [changed] means it replaced one. */
+    fun yearChosen(year: Int, source: String, changed: Boolean) {
+        val fields = mapOf(Key.YEAR to year, Key.SOURCE to source, Key.CHANGED to changed)
+        analytics.track(Event.YEAR_CHOSEN, fields)
+        logger.debug(TAG, Event.YEAR_CHOSEN, tc = flowTrace.toLog(), fields = fields)
+    }
+
+    /** A fuel was tapped; [changed] means it replaced one. */
+    fun fuelChosen(fuel: String, changed: Boolean) {
+        val fields = mapOf(Key.FUEL_TYPE to fuel, Key.CHANGED to changed)
+        analytics.track(Event.FUEL_CHOSEN, fields)
+        logger.debug(TAG, Event.FUEL_CHOSEN, tc = flowTrace.toLog(), fields = fields)
+    }
+
+    fun insuranceShown() {
+        analytics.track(Event.INSURANCE_SHOWN)
+        logger.info(TAG, Event.INSURANCE_SHOWN, tc = flowTrace.toLog())
+    }
+
+    /** [monthsAhead] is 0 for this month; the month itself is not sent. */
+    fun insuranceAnswered(monthsAhead: Int) {
+        val fields = mapOf(Key.MONTHS_AHEAD to monthsAhead)
+        analytics.track(Event.INSURANCE_ANSWERED, fields)
+        logger.info(TAG, Event.INSURANCE_ANSWERED, tc = flowTrace.toLog(), fields = fields)
+    }
+
+    fun insuranceSkipped() {
+        analytics.track(Event.INSURANCE_SKIPPED)
+        logger.info(TAG, Event.INSURANCE_SKIPPED, tc = flowTrace.toLog())
+    }
+
+    /** The v2 catalog read failed; the step shows a retry. */
+    fun catalogLoadFailed() {
+        analytics.track(Event.CATALOG_LOAD_FAILED)
+        logger.error(TAG, Event.CATALOG_LOAD_FAILED, tc = flowTrace.toLog())
+    }
+
+    /** The v2 catalog loaded with no makes, so the owner has nothing to pick. */
+    fun catalogEmpty() {
+        analytics.track(Event.CATALOG_EMPTY)
+        logger.warn(TAG, Event.CATALOG_EMPTY, tc = flowTrace.toLog())
     }
 
     /**
      * The owner left setup from [step]. [fields] is the step's fields in screen order, each
      * with whether it held an answer, so the event says which one they stopped at.
      */
-    fun abandoned(step: OnboardingStep, fields: List<Pair<String, Boolean>>, catalog: Loadable<*>) {
+    fun abandoned(step: OnboardingStep, fields: List<Pair<String, Boolean>>, catalog: Loadable<*>) =
+        abandoned(step.name, fields, catalog.label())
+
+    /** The same, with [step] as its event name and [catalog] already labelled. */
+    fun abandoned(step: String, fields: List<Pair<String, Boolean>>, catalog: String) {
         val properties = mapOf(
-            Key.STEP to step.name,
+            Key.STEP to step,
             Key.FIELDS_ANSWERED to fields.count { it.second },
             Key.STOPPED_AT to (fields.firstOrNull { !it.second }?.first ?: Field.NONE),
-            Key.CATALOG to catalog.label(),
+            Key.CATALOG to catalog,
         )
         analytics.track(Event.ABANDONED, properties)
         logger.info(TAG, Event.ABANDONED, tc = flowTrace.toLog(), fields = properties)
     }
 
     /** A field got its first answer. [field] is a [Field] name, never what was entered. */
-    fun fieldAnswered(step: OnboardingStep, field: String) {
-        val properties = mapOf(Key.STEP to step.name, Key.FIELD to field)
+    fun fieldAnswered(step: OnboardingStep, field: String) = fieldAnswered(step.name, field)
+
+    fun fieldAnswered(step: String, field: String) {
+        val properties = mapOf(Key.STEP to step, Key.FIELD to field)
         analytics.track(Event.FIELD_ANSWERED, properties)
         logger.debug(TAG, Event.FIELD_ANSWERED, tc = flowTrace.toLog(), fields = properties)
     }
@@ -171,23 +263,9 @@ internal class SetupTelemetry(
         )
     }
 
-    fun firstScanClicked() {
-        analytics.track(Event.FIRST_SCAN_CLICKED)
-        logger.info(TAG, Event.FIRST_SCAN_CLICKED, tc = flowTrace.toLog())
-    }
-
-    fun firstScanSkipped() {
-        analytics.track(Event.FIRST_SCAN_SKIPPED)
-        logger.info(TAG, Event.FIRST_SCAN_SKIPPED, tc = flowTrace.toLog())
-    }
-
     /**
-     * Every question setup asks has been answered and the car is stored.
-     *
-     * Kept under its shipped name: it is the activation metric every dashboard already
-     * queries, and renaming it would break the history it is measured against. It carries no
-     * properties now — the goal and the sign-in offer both left first run with the steps
-     * that asked for them.
+     * The car was saved. Not the end of first run, which is `first_run_finished` on the value
+     * screen. Kept under its shipped name because dashboards already query it.
      */
     fun completed() {
         analytics.track(Event.COMPLETED)
@@ -202,12 +280,14 @@ internal class SetupTelemetry(
             val options = read()
             if (options == null) {
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
+                analytics.track(Event.CATALOG_LOAD_FAILED)
                 logger.error(TAG, Event.CATALOG_LOAD_FAILED, tc = currentTraceContext().toLog())
             } else {
                 span.setAttribute(Key.MAKE_COUNT, options.makes.size)
                 if (options.makes.isEmpty()) {
                     // An empty catalog renders as a form with nothing to pick, which looks like
                     // a bug to the owner and is one to us — the seed data didn't land.
+                    analytics.track(Event.CATALOG_EMPTY)
                     logger.warn(TAG, Event.CATALOG_EMPTY, tc = currentTraceContext().toLog())
                 }
             }
@@ -220,6 +300,7 @@ internal class SetupTelemetry(
             val models = read()
             span.setAttribute(Key.COUNT, models.size)
             if (models.isEmpty()) {
+                analytics.track(Event.MODELS_EMPTY, mapOf(Key.MAKE to make))
                 logger.warn(
                     TAG,
                     Event.MODELS_EMPTY,
@@ -239,14 +320,16 @@ internal class SetupTelemetry(
         edit: Boolean,
         make: String?,
         fuel: String?,
+        step: String = OnboardingStep.CAR.name,
+        resumed: Boolean = false,
         write: suspend () -> EitherNel<DomainError, Car>,
     ): EitherNel<DomainError, Car> = traced(Trace.SAVE_CAR, Key.EDIT to edit) { span ->
         val result = write()
         result.fold(
-            ifLeft = { errors -> span.setAttribute(Key.OUTCOME, Outcome.FAILED); logSaveFailure(OnboardingStep.CAR, errors) },
+            ifLeft = { errors -> span.setAttribute(Key.OUTCOME, Outcome.FAILED); logSaveFailure(step, errors) },
             ifRight = { car ->
                 span.setAttribute(Key.CAR_ID, car.id.value)
-                val fields = mapOf(Key.EDIT to edit, Key.MAKE to make, Key.FUEL_TYPE to fuel)
+                val fields = mapOf(Key.EDIT to edit, Key.MAKE to make, Key.FUEL_TYPE to fuel, Key.RESUMED to resumed)
                 analytics.track(Event.CAR_SAVED, fields)
                 logger.info(TAG, Event.CAR_SAVED, tc = currentTraceContext().toLog(), fields = fields)
             },
@@ -280,8 +363,8 @@ internal class SetupTelemetry(
      * A failed write, named by the *types* of the errors that caused it — never by the values
      * that failed validation, which are the owner's answers.
      */
-    private suspend fun logSaveFailure(step: OnboardingStep, errors: NonEmptyList<DomainError>) {
-        val fields = mapOf(Key.STEP to step.name, Key.ERRORS to errors.errorTypes())
+    private suspend fun logSaveFailure(step: String, errors: NonEmptyList<DomainError>) {
+        val fields = mapOf(Key.STEP to step, Key.ERRORS to errors.errorCodes())
         analytics.track(Event.SAVE_FAILED, fields)
         logger.error(TAG, Event.SAVE_FAILED, tc = currentTraceContext().toLog(), fields = fields)
     }
@@ -310,6 +393,14 @@ internal class SetupTelemetry(
         const val STARTED = "onboarding_started"
         const val STEP_ADVANCED = "onboarding_step_advanced"
         const val STEP_BACK = "onboarding_step_back"
+        const val STEP_SHOWN = "onboarding_step_shown"
+        const val MODEL_CHOSEN = "onboarding_model_chosen"
+        const val MODEL_SEARCH_OPENED = "onboarding_model_search_opened"
+        const val MODEL_SEARCH_DISMISSED = "onboarding_model_search_dismissed"
+        const val CHANGE_MAKE_CLICKED = "onboarding_change_make_clicked"
+        const val YEAR_OLDER_OPENED = "onboarding_year_older_opened"
+        const val YEAR_CHOSEN = "onboarding_year_chosen"
+        const val FUEL_CHOSEN = "onboarding_fuel_chosen"
         const val ABANDONED = "onboarding_abandoned"
         const val FIELD_ANSWERED = "onboarding_field_answered"
         const val CATALOG_RETRIED = "onboarding_catalog_retried"
@@ -321,13 +412,14 @@ internal class SetupTelemetry(
         const val ODOMETER_SKIPPED = "onboarding_odometer_skipped"
         const val LAST_SERVICE_SKIPPED = "onboarding_last_service_skipped"
         const val LAST_SERVICE_REFUSED = "onboarding_last_service_refused"
-        const val FIRST_SCAN_CLICKED = "onboarding_first_scan_clicked"
-        const val FIRST_SCAN_SKIPPED = "onboarding_first_scan_skipped"
         const val COMPLETED = "onboarding_completed"
 
         const val CATALOG_LOAD_FAILED = "onboarding_catalog_load_failed"
         const val CATALOG_EMPTY = "onboarding_catalog_empty"
         const val MODELS_EMPTY = "onboarding_models_empty"
+        const val INSURANCE_SHOWN = "onboarding_insurance_shown"
+        const val INSURANCE_ANSWERED = "onboarding_insurance_answered"
+        const val INSURANCE_SKIPPED = "onboarding_insurance_skipped"
     }
 
     /** Span / child-trace names — only genuine durations (catalog, registry, DB writes). */
@@ -358,6 +450,10 @@ internal class SetupTelemetry(
         const val FIELDS_ANSWERED = "fields_answered"
         const val STOPPED_AT = "stopped_at"
         const val CATALOG = "catalog"
+        const val RESUMED = "resumed"
+        const val YEAR = "year"
+        const val CHANGED = "changed"
+        const val MONTHS_AHEAD = "months_ahead"
     }
 
     /** The values [Key.FIELD] and [Key.STOPPED_AT] take. */
@@ -373,7 +469,29 @@ internal class SetupTelemetry(
         const val NONE = "none"
     }
 
-    /** The values [Key.OUTCOME] takes, beyond a `DomainError`'s own type name. */
+    /** The v2 setup steps, as [Key.STEP] reports them. */
+    object Step {
+        const val MODEL = "model"
+        const val YEAR_FUEL = "year_fuel"
+        const val INSURANCE = "insurance"
+    }
+
+    /** Where a model came from, as [Key.SOURCE] reports it. */
+    object ModelSource {
+        const val GRID = "grid"
+        const val SEARCH = "search"
+
+        /** Typed because the model was not listed. */
+        const val TYPED = "typed"
+    }
+
+    /** Where a year came from, as [Key.SOURCE] reports it. */
+    object YearSource {
+        const val CHIP = "chip"
+        const val OLDER = "older"
+    }
+
+    /** The values [Key.OUTCOME] takes, beyond a `DomainError`'s own code. */
     object Outcome {
         const val MATCHED = "matched"
         const val FAILED = "failed"
@@ -384,15 +502,11 @@ internal class SetupTelemetry(
 }
 
 /** Whether the pickers were on screen: an owner cannot answer a form that never loaded. */
-private fun Loadable<*>.label(): String = when (this) {
+internal fun Loadable<*>.label(): String = when (this) {
     Loadable.Loading -> "loading"
     is Loadable.Ready -> "ready"
     is Loadable.Failed -> "failed"
 }
 
-/**
- * A comma-joined list of the accumulated errors' *type* names — safe to emit (no user input, no
- * PII) and enough for a dashboard to see which rule failed.
- */
-private fun NonEmptyList<DomainError>.errorTypes(): String =
-    joinToString(",") { it::class.simpleName ?: "Unknown" }
+/** The accumulated errors' codes, comma-joined: no user input, and enough to see which rule failed. */
+private fun NonEmptyList<DomainError>.errorCodes(): String = joinToString(",") { it.code() }

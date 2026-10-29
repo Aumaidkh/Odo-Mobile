@@ -519,7 +519,7 @@ class OnboardingViewModelTest {
         val failure = analytics.events.last { it.first == SetupTelemetry.Event.SAVE_FAILED }
         assertEquals(OnboardingStep.CAR.name, failure.second[SetupTelemetry.Key.STEP])
         // The *type* that failed, never the answer that failed it.
-        assertEquals("PersistenceFailure", failure.second[SetupTelemetry.Key.ERRORS])
+        assertEquals("persistence_failure", failure.second[SetupTelemetry.Key.ERRORS])
     }
 
     @Test
@@ -722,7 +722,7 @@ class OnboardingViewModelTest {
         var lastMake: String? = null
 
         override suspend fun makes(): List<String> = read { listOf("Maruti Suzuki", "Honda") }
-        override suspend fun popularMakes(): List<String> = read { listOf("Maruti Suzuki") }
+        override suspend fun popularMakes(limit: Int): List<String> = read { listOf("Maruti Suzuki").take(limit) }
 
         override suspend fun models(make: String): List<CarModel> = read {
             lastMake = make

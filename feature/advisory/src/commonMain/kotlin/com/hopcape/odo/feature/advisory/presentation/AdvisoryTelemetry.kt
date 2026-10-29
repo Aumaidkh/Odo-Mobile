@@ -48,9 +48,17 @@ internal class AdvisoryTelemetry(
     }
 
     /** Bills scanned per month is the North Star, so every launch point is worth naming. */
-    fun scanClicked() {
-        analytics.track(Event.SCAN_CLICKED)
-        logger.info(TAG, Event.SCAN_CLICKED, tc = flowTrace.toLog())
+    fun scanClicked(firstRun: Boolean) {
+        val fields = mapOf(Key.FIRST_RUN to firstRun)
+        analytics.track(Event.SCAN_CLICKED, fields)
+        logger.info(TAG, Event.SCAN_CLICKED, tc = flowTrace.toLog(), fields = fields)
+    }
+
+    /** First run ended on the value screen. [via] is one of [Via]: the funnel's last step. */
+    fun firstRunFinished(via: String) {
+        val fields = mapOf(Key.VIA to via)
+        analytics.track(Event.FIRST_RUN_FINISHED, fields)
+        logger.info(TAG, Event.FIRST_RUN_FINISHED, tc = flowTrace.toLog(), fields = fields)
     }
 
     /**
@@ -58,11 +66,37 @@ internal class AdvisoryTelemetry(
      *
      * Its share against [scanClicked] is what says whether the value screen is an argument
      * or a wall — and it is the one number that decides whether the screen earns its place
-     * in first run at all.
+     * in first run at all. [viaBack] separates back from the button.
      */
-    fun firstRunSkipped() {
-        analytics.track(Event.FIRST_RUN_SKIPPED)
-        logger.info(TAG, Event.FIRST_RUN_SKIPPED, tc = flowTrace.toLog())
+    fun firstRunSkipped(viaBack: Boolean) {
+        val fields = mapOf(Key.VIA to if (viaBack) VIA_BACK else VIA_BUTTON)
+        analytics.track(Event.FIRST_RUN_SKIPPED, fields)
+        logger.info(TAG, Event.FIRST_RUN_SKIPPED, tc = flowTrace.toLog(), fields = fields)
+    }
+
+    /** The first-run auto-odometer card was shown. */
+    fun autoOdoOffered() {
+        analytics.track(Event.AUTO_ODO_OFFERED)
+        logger.info(TAG, Event.AUTO_ODO_OFFERED, tc = flowTrace.toLog())
+    }
+
+    /** The auto-odometer card scrolled into view, since the offer can sit below the fold. */
+    fun autoOdoCardSeen() {
+        analytics.track(Event.AUTO_ODO_CARD_SEEN)
+        logger.debug(TAG, Event.AUTO_ODO_CARD_SEEN, tc = flowTrace.toLog())
+    }
+
+    /** "Why a range?" opened or closed on the first-run value screen. */
+    fun whyRangeToggled(expanded: Boolean) {
+        val fields = mapOf(Key.EXPANDED to expanded)
+        analytics.track(Event.WHY_RANGE_TOGGLED, fields)
+        logger.debug(TAG, Event.WHY_RANGE_TOGGLED, tc = flowTrace.toLog(), fields = fields)
+    }
+
+    /** "Turn on" on the first-run auto-odometer card. */
+    fun autoOdoOfferAccepted() {
+        analytics.track(Event.AUTO_ODO_OFFER_ACCEPTED)
+        logger.info(TAG, Event.AUTO_ODO_OFFER_ACCEPTED, tc = flowTrace.toLog())
     }
 
     fun shareClicked() {
@@ -202,6 +236,8 @@ internal class AdvisoryTelemetry(
         LogTrace(sessionId = sessionId, flowId = flowId, traceId = traceId)
 
     private companion object {
+        const val VIA_BACK = "back"
+        const val VIA_BUTTON = "button"
         const val TAG = "ADVISORY"
         const val FLOW = "advisory"
 
@@ -219,7 +255,12 @@ internal class AdvisoryTelemetry(
         const val VALUE_SHOWN = "advisory_value_shown"
         const val SCAN_CLICKED = "advisory_value_scan_clicked"
         const val FIRST_RUN_SKIPPED = "advisory_value_first_run_skipped"
+        const val FIRST_RUN_FINISHED = "first_run_finished"
         const val SHARE_CLICKED = "advisory_value_share_clicked"
+        const val AUTO_ODO_OFFERED = "auto_odo_offered"
+        const val AUTO_ODO_OFFER_ACCEPTED = "auto_odo_offer_accepted"
+        const val AUTO_ODO_CARD_SEEN = "auto_odo_card_seen"
+        const val WHY_RANGE_TOGGLED = "advisory_value_why_range_toggled"
         const val NO_CAR = "advisory_value_no_car"
         const val CITY_CATALOG_UNAVAILABLE = "advisory_city_catalog_unavailable"
         const val CITY_NOT_LISTED = "advisory_city_not_listed"
@@ -228,6 +269,14 @@ internal class AdvisoryTelemetry(
         const val CHECKLIST_UNAVAILABLE = "advisory_checklist_unavailable"
         const val CHECKLIST_SAVE_CLICKED = "advisory_checklist_save_clicked"
         const val CHECKLIST_SAVE_FAILED = "advisory_checklist_save_failed"
+    }
+
+    /** How first run ended, the values of [Key.VIA] on [Event.FIRST_RUN_FINISHED]. */
+    object Via {
+        const val SCAN = "scan"
+        const val SKIP = "skip"
+        const val BACK = "back"
+        const val AUTO_ODOMETER = "auto_odometer"
     }
 
     object Trace {
@@ -243,5 +292,7 @@ internal class AdvisoryTelemetry(
         const val DUE = "due"
         const val PRICED = "priced"
         const val ENTRY = "entry"
+        const val VIA = "via"
+        const val EXPANDED = "expanded"
     }
 }

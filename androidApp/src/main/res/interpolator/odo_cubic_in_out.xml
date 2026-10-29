@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cubic ease in-out, matches the needle sweep and fall in the motion spec. -->
+<pathInterpolator xmlns:android="http://schemas.android.com/apk/res/android"
+    android:controlX1="0.65"
+    android:controlY1="0"
+    android:controlX2="0.35"
+    android:controlY2="1" />

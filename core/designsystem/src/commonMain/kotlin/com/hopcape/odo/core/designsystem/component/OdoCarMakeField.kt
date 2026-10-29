@@ -6,19 +6,23 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,6 +30,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
@@ -33,6 +39,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -61,6 +68,8 @@ data class OdoCarMake(
     val name: String,
     val subtitle: String? = null,
     val monogram: String? = null,
+    /** The brand's logo image. Null, still loading, or failed shows the monogram instead. */
+    val logoUrl: String? = null,
 ) {
     /** The avatar letter — [monogram] if given, else [name]'s first character, uppercased. */
     val avatarText: String
@@ -144,8 +153,6 @@ fun OdoCarMakeField(
     notListedConfirmLabel: String? = null,
 ) {
     var open by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState()
-    val scope = rememberCoroutineScope()
     val isError = errorText != null
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
@@ -175,34 +182,114 @@ fun OdoCarMakeField(
     }
 
     if (open) {
-        // Animate the sheet out before dropping it, so a selection doesn't make the
-        // sheet vanish mid-gesture.
-        val dismiss = { scope.launch { sheetState.hide() }.invokeOnCompletion { open = false } }
-        ModalBottomSheet(
+        OdoCarMakeSheet(
             onDismissRequest = { open = false },
-            sheetState = sheetState,
-            containerColor = OdoTheme.colors.surface,
+            makes = makes,
+            onSelect = onSelect,
+            title = title,
+            subtitle = subtitle,
+            searchPlaceholder = searchPlaceholder,
+            matchCountLabel = matchCountLabel,
+            popularSectionLabel = popularSectionLabel,
+            allSectionLabel = allSectionLabel,
+            emptyResultsText = emptyResultsText,
+            closeContentDescription = closeContentDescription,
+            selected = selected,
+            popular = popular,
+            notListedLabel = notListedLabel,
+            notListedPlaceholder = notListedPlaceholder,
+            notListedConfirmLabel = notListedConfirmLabel,
+        )
+    }
+}
+
+/**
+ * The searchable make sheet on its own, for callers that open it from something other than
+ * [OdoCarMakeField] (Welcome's "Other" tile). Parameters are as on [OdoCarMakeField].
+ * Selecting a make calls [onSelect], then hides the sheet and calls [onDismissRequest].
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OdoCarMakeSheet(
+    onDismissRequest: () -> Unit,
+    makes: List<OdoCarMake>,
+    onSelect: (OdoCarMake) -> Unit,
+    title: String,
+    subtitle: String,
+    searchPlaceholder: String,
+    matchCountLabel: (Int) -> String,
+    popularSectionLabel: String,
+    allSectionLabel: String,
+    emptyResultsText: String,
+    closeContentDescription: String,
+    selected: OdoCarMake? = null,
+    popular: List<OdoCarMake> = emptyList(),
+    notListedLabel: String? = null,
+    notListedPlaceholder: String? = null,
+    notListedConfirmLabel: String? = null,
+) {
+    // Fully open: a half-open sheet leaves its list running under the navigation bar.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    // Animate the sheet out before dropping it, so a selection doesn't make the
+    // sheet vanish mid-gesture.
+    val dismiss = { scope.launch { sheetState.hide() }.invokeOnCompletion { onDismissRequest() } }
+    ModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
+        containerColor = OdoTheme.colors.surface,
+    ) {
+        CarMakeSheet(
+            selected = selected,
+            makes = makes,
+            popular = popular,
+            title = title,
+            subtitle = subtitle,
+            searchPlaceholder = searchPlaceholder,
+            matchCountLabel = matchCountLabel,
+            popularSectionLabel = popularSectionLabel,
+            allSectionLabel = allSectionLabel,
+            emptyResultsText = emptyResultsText,
+            closeContentDescription = closeContentDescription,
+            notListedLabel = notListedLabel,
+            notListedPlaceholder = notListedPlaceholder,
+            notListedConfirmLabel = notListedConfirmLabel,
+            onSelect = { make ->
+                onSelect(make)
+                dismiss()
+            },
+            onClose = { dismiss() },
+        )
+    }
+}
+
+/**
+ * One make as a square tile in a grid: the monogram over the name. Tapping it is the choice,
+ * so there is no selected state.
+ */
+@Composable
+fun OdoCarMakeTile(
+    make: OdoCarMake,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OdoCard(
+        modifier = modifier,
+        onClick = onClick,
+        contentPadding = PaddingValues(horizontal = OdoTheme.spacing.sm, vertical = OdoTheme.spacing.md),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
         ) {
-            CarMakeSheet(
-                selected = selected,
-                makes = makes,
-                popular = popular,
-                title = title,
-                subtitle = subtitle,
-                searchPlaceholder = searchPlaceholder,
-                matchCountLabel = matchCountLabel,
-                popularSectionLabel = popularSectionLabel,
-                allSectionLabel = allSectionLabel,
-                emptyResultsText = emptyResultsText,
-                closeContentDescription = closeContentDescription,
-                notListedLabel = notListedLabel,
-                notListedPlaceholder = notListedPlaceholder,
-                notListedConfirmLabel = notListedConfirmLabel,
-                onSelect = { make ->
-                    onSelect(make)
-                    dismiss()
-                },
-                onClose = { dismiss() },
+            MakeAvatar(make = make, selected = false, size = OdoMakeLogoDefaults.Height, width = OdoMakeLogoDefaults.Width)
+            OdoText(
+                text = make.name,
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.text,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
             )
         }
     }
@@ -285,6 +372,9 @@ private fun CarMakeSheet(
     var query by remember { mutableStateOf("") }
     val trimmed = query.trim()
     val searching = trimmed.isNotEmpty()
+    val listState = rememberLazyListState()
+    // Matches are inserted above the list, so without this they open scrolled out of view.
+    LaunchedEffect(trimmed) { listState.scrollToItem(0) }
     var enteringCustom by remember { mutableStateOf(false) }
 
     if (enteringCustom && notListedPlaceholder != null && notListedConfirmLabel != null) {
@@ -349,6 +439,7 @@ private fun CarMakeSheet(
         )
 
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxWidth().heightIn(max = SheetListMaxHeight),
             verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
         ) {
@@ -537,24 +628,65 @@ private fun MakeRow(
 
 /** The rounded monogram tile at the head of a make row; fills with accent when chosen. */
 @Composable
-private fun MakeAvatar(make: OdoCarMake, selected: Boolean, size: Dp) {
+private fun MakeAvatar(make: OdoCarMake, selected: Boolean, size: Dp, width: Dp = size) =
+    OdoMakeLogo(make = make, width = width, height = size, selected = selected)
+
+/**
+ * A make's logo on a white plate, so brand colours read in both themes. Shows the
+ * monogram while the image loads, when it fails, or when the make has none.
+ */
+@Composable
+fun OdoMakeLogo(
+    make: OdoCarMake,
+    modifier: Modifier = Modifier,
+    width: Dp = OdoMakeLogoDefaults.Width,
+    height: Dp = OdoMakeLogoDefaults.Height,
+    selected: Boolean = false,
+) {
     val colors = OdoTheme.colors
+    var logoShown by remember(make.logoUrl) { mutableStateOf(false) }
+    val fill = when {
+        logoShown -> Color.White
+        selected -> colors.accent.copy(alpha = SelectedGlyphFill)
+        else -> colors.surface
+    }
     Box(
-        modifier = Modifier
-            .size(size)
+        modifier = modifier
+            .size(width = width, height = height)
             .clip(OdoTheme.shapes.small)
-            .background(if (selected) colors.accent.copy(alpha = SelectedGlyphFill) else colors.surface)
+            .background(fill)
             .border(1.dp, if (selected) colors.accent.copy(alpha = SelectedFill) else colors.border, OdoTheme.shapes.small),
         contentAlignment = Alignment.Center,
     ) {
-        OdoText(
-            text = make.avatarText,
-            style = OdoTheme.typography.heading,
-            color = if (selected) colors.accent else colors.textDim,
-            maxLines = 1,
-        )
+        if (make.logoUrl != null) {
+            AsyncImage(
+                model = make.logoUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                onSuccess = { logoShown = true },
+                onError = { logoShown = false },
+                modifier = Modifier.fillMaxSize().padding(height * LOGO_INSET_RATIO),
+            )
+        }
+        if (!logoShown) {
+            OdoText(
+                text = make.avatarText,
+                style = OdoTheme.typography.heading,
+                color = if (selected) colors.accent else colors.textDim,
+                maxLines = 1,
+            )
+        }
     }
 }
+
+/** Sizes for [OdoMakeLogo]: wide enough that a wordmark stays legible. */
+object OdoMakeLogoDefaults {
+    val Width: Dp = 72.dp
+    val Height: Dp = 40.dp
+}
+
+/** Padding inside the plate, as a share of its height. */
+private const val LOGO_INSET_RATIO = 0.14f
 
 /**
  * Emphasises the matched span of [name] against [query] — the matched characters render in

@@ -1,0 +1,10 @@
+-- The first-run setup draft (release 1.4.5). Device-local, never synced, one row.
+CREATE TABLE setup_draft (
+    id            INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+    make          TEXT NOT NULL,
+    model_name    TEXT,
+    model_variant TEXT,
+    year          INTEGER,
+    fuel_type     TEXT,
+    updated_at    TEXT NOT NULL
+);

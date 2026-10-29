@@ -2,15 +2,18 @@ package com.hopcape.odo.feature.refuel.presentation.confirm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hopcape.odo.core.common.runCatchingCancellableSuspend
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
+import com.hopcape.odo.core.domain.cost.fuel.FuelPriceProvider
+import com.hopcape.odo.core.domain.cost.fuel.FuelUnit
 import com.hopcape.odo.core.domain.cost.model.FieldOrigin
 import com.hopcape.odo.core.domain.cost.model.FillEntrySource
 import com.hopcape.odo.core.domain.cost.model.FuelFillDraft
-import com.hopcape.odo.core.common.runCatchingCancellableSuspend
 import com.hopcape.odo.core.domain.refuel.PendingFillStore
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.shared.code
 import com.hopcape.odo.core.navigation.FuelFillDraftInput
 import com.hopcape.odo.feature.refuel.domain.toDomain
 import com.hopcape.odo.feature.refuel.domain.usecase.BuildFillDraftUseCase
@@ -28,8 +31,7 @@ import com.hopcape.odo.feature.refuel.resources.rf_error_save
 import com.hopcape.odo.feature.refuel.resources.rf_unit_kg
 import com.hopcape.odo.feature.refuel.resources.rf_unit_kwh
 import com.hopcape.odo.feature.refuel.resources.rf_unit_litre
-import com.hopcape.odo.core.domain.cost.fuel.FuelPriceProvider
-import com.hopcape.odo.core.domain.cost.fuel.FuelUnit
+import kotlin.time.Clock
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,7 +40,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlin.time.Clock
 
 /**
  * State holder for the confirm surface — the one place every captured fill passes through.
@@ -180,7 +181,7 @@ internal class RefuelConfirmViewModel(
                     val first = errors.head
                     telemetry.fillRefused(
                         source = draft.source.name,
-                        reason = first::class.simpleName ?: UNKNOWN,
+                        reason = first.code(),
                     )
                     _state.update { it.copy(saving = false, error = first.toMessage()) }
                 }
@@ -246,7 +247,6 @@ internal class RefuelConfirmViewModel(
         const val OP_LOAD = "refuel_confirm_load"
         const val OP_CONFIRM = "refuel_confirm_save"
         const val OP_REJECT = "refuel_confirm_reject"
-        const val UNKNOWN = "Unknown"
     }
 }
 

@@ -2,21 +2,21 @@ package com.hopcape.odo.feature.dashboard.presentation.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.activity.model.ActivityEvent
 import com.hopcape.odo.core.domain.alerts.model.CarAttention
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.model.CarId
-import com.hopcape.odo.core.config.FeatureConfig
-import com.hopcape.odo.core.domain.refuel.RefuelDetectionStore
 import com.hopcape.odo.core.domain.entitlement.EntitlementSource
 import com.hopcape.odo.core.domain.entitlement.Plan
 import com.hopcape.odo.core.domain.entitlement.ProFeature
+import com.hopcape.odo.core.domain.owner.SessionStatusProvider
+import com.hopcape.odo.core.domain.refuel.RefuelDetectionStore
 import com.hopcape.odo.core.domain.showcase.ShowcaseArbiter
 import com.hopcape.odo.core.domain.showcase.ShowcaseHookId
 import com.hopcape.odo.core.triptracker.TripTracker
 import com.hopcape.odo.core.triptracker.VehicleBondStore
-import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.feature.dashboard.domain.model.HomeSnapshot
 import com.hopcape.odo.feature.dashboard.domain.usecase.ObserveHomeUseCase
 import com.hopcape.odo.feature.dashboard.presentation.state.Loadable
@@ -30,8 +30,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -343,7 +343,7 @@ internal class HomeViewModel(
      */
     private fun openAttention() {
         val attention = content()?.attention ?: return
-        telemetry.attentionTapped(kind = attention::class.simpleName.orEmpty())
+        telemetry.attentionTapped(kind = attention.analyticsKind())
         when (attention) {
             is CarAttention.DocumentLapsed, is CarAttention.DocumentExpiring ->
                 send(HomeEffect.OpenVault)

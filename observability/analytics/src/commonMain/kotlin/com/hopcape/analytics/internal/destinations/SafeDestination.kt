@@ -26,6 +26,10 @@ internal class SafeDestination(
         runCatching { delegate.forget() }.onFailure { onInternalError(name, it) }
     }
 
+    override fun setUserProperty(name: String, value: String) {
+        runCatching { delegate.setUserProperty(name, value) }.onFailure { onInternalError(this.name, it) }
+    }
+
     override fun track(event: AnalyticsEvent): Boolean =
         runCatching { delegate.track(event) }
             .onFailure { onInternalError(name, it) }

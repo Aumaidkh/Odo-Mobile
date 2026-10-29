@@ -1,6 +1,9 @@
 package com.hopcape.odo.feature.onboarding.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.navigation3.runtime.EntryProviderScope
@@ -8,6 +11,11 @@ import androidx.navigation3.runtime.NavKey
 import com.hopcape.odo.core.domain.legal.LegalLinks
 import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
+import com.hopcape.odo.core.navigation.FirstRunVariant
+import com.hopcape.odo.feature.onboarding.OnboardingConfig
+import com.hopcape.odo.feature.onboarding.presentation.makewelcome.MakeWelcomeEffect
+import com.hopcape.odo.feature.onboarding.presentation.makewelcome.MakeWelcomeScreen
+import com.hopcape.odo.feature.onboarding.presentation.makewelcome.MakeWelcomeViewModel
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
@@ -36,9 +44,20 @@ import org.koin.compose.viewmodel.koinViewModel
 internal class OnboardingFeatureEntryProvider(
     private val navigationManager: NavigationManager,
     private val legalLinks: LegalLinks,
+    private val config: OnboardingConfig,
 ) : FeatureEntryProvider {
     override fun EntryProviderScope<NavKey>.registerEntries() {
-        entry<OdoDestination.Welcome> { WelcomeRoute(navigationManager, legalLinks) }
+        entry<OdoDestination.Welcome> { key ->
+            // Read once per visit: a Welcome reached without a variant (after a sign-out)
+            // takes whatever the switch says when it opens.
+            val variant = remember(key) {
+                key.variant ?: if (config.firstRunV2Enabled) FirstRunVariant.V2 else FirstRunVariant.V1
+            }
+            when (variant) {
+                FirstRunVariant.V2 -> MakeWelcomeRoute(navigationManager, legalLinks)
+                FirstRunVariant.V1 -> WelcomeRoute(navigationManager, legalLinks)
+            }
+        }
         entry<OdoDestination.WelcomeVideo> { WelcomeVideoRoute(navigationManager) }
     }
 }
@@ -61,7 +80,7 @@ internal fun WelcomeRoute(navigationManager: NavigationManager, legalLinks: Lega
     val uriHandler = LocalUriHandler.current
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
-            WelcomeEffect.OpenCarSetup -> navigationManager.navigateTo(OdoDestination.Onboarding)
+            WelcomeEffect.OpenCarSetup -> navigationManager.navigateTo(OdoDestination.Onboarding())
             // Home, not car setup: sync restores the returning owner's car, so setup would
             // only make a second one.
             //
@@ -85,6 +104,28 @@ internal fun WelcomeRoute(navigationManager: NavigationManager, legalLinks: Lega
     WelcomeScreen(onEvent = viewModel::onEvent)
 }
 
+/** The v2 Welcome: a make tile opens setup at the Model step. */
+@Composable
+internal fun MakeWelcomeRoute(navigationManager: NavigationManager, legalLinks: LegalLinks) {
+    val viewModel = koinViewModel<MakeWelcomeViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val uriHandler = LocalUriHandler.current
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            is MakeWelcomeEffect.OpenSetup -> navigationManager.navigateTo(
+                OdoDestination.Onboarding(make = effect.make, variant = FirstRunVariant.V2, resume = effect.resume),
+            )
+            MakeWelcomeEffect.OpenSignIn -> navigationManager.finishFlow(
+                OdoDestination.Auth.Phone(next = OdoDestination.Home),
+                ::isFirstRunStep,
+            )
+            MakeWelcomeEffect.OpenTerms -> legalLinks.termsOfUse.openIfSet(uriHandler)
+            MakeWelcomeEffect.OpenPrivacy -> legalLinks.privacyPolicy.openIfSet(uriHandler)
+        }
+    }
+    MakeWelcomeScreen(state = state, onEvent = viewModel::onEvent)
+}
+
 /** Opens this URL, or does nothing when the build has no legal pages configured. */
 private fun String.openIfSet(uriHandler: UriHandler) {
     if (isNotBlank()) uriHandler.openUri(this)
@@ -102,7 +143,7 @@ internal fun WelcomeVideoRoute(navigationManager: NavigationManager) {
     val viewModel = koinViewModel<WelcomeVideoViewModel>()
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
-            WelcomeVideoEffect.OpenCarSetup -> navigationManager.navigateTo(OdoDestination.Onboarding)
+            WelcomeVideoEffect.OpenCarSetup -> navigationManager.navigateTo(OdoDestination.Onboarding())
         }
     }
     WelcomeVideoScreen(pages = viewModel.pages, onEvent = viewModel::onEvent)

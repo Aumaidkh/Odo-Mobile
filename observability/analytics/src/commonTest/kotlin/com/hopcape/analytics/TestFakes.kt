@@ -77,6 +77,12 @@ internal class RecordingDestination(
         identified += traits
     }
 
+    val userProperties = mutableMapOf<String, String>()
+
+    override fun setUserProperty(name: String, value: String) {
+        userProperties[name] = value
+    }
+
     var forgetCount = 0
         private set
 

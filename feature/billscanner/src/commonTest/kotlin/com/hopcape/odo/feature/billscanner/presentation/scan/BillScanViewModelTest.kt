@@ -63,40 +63,104 @@ class BillScanViewModelTest {
     )
 
     @Test
-    fun notNow_leavesTheFlow() = runTest {
-        val vm = viewModel()
+    fun notNow_showsTheGalleryState_andStaysOpen() = runTest {
+        val analytics = RecordingAnalytics()
+        val vm = viewModel(analytics)
+        vm.onEvent(BillScanEvent.PermissionChanged(CameraPermissionStatus.Askable))
 
         vm.onEvent(BillScanEvent.PermissionDeclined)
 
-        // The whole point of #114: declining used to drop through to the viewfinder, which had
-        // no preview to show and nudged for the permission that had just been refused.
+        assertTrue(vm.state.value.showGalleryOnly)
+        assertFalse(vm.state.value.showRationale)
+        assertEquals(1, analytics.count(BillScannerTelemetry.Event.CAMERA_DECLINED))
+    }
+
+    @Test
+    fun aDeniedPrompt_showsTheGalleryState() = runTest {
+        val analytics = RecordingAnalytics()
+        val vm = viewModel(analytics)
+        vm.onEvent(BillScanEvent.PermissionChanged(CameraPermissionStatus.Askable))
+
+        vm.onEvent(BillScanEvent.CameraRequested)
+        vm.onEvent(BillScanEvent.Resumed)
+
+        assertTrue(vm.state.value.showGalleryOnly)
+        assertEquals(1, analytics.count(BillScannerTelemetry.Event.CAMERA_DECLINED))
+    }
+
+    @Test
+    fun aGrantedPrompt_opensTheViewfinder() = runTest {
+        val vm = viewModel()
+        vm.onEvent(BillScanEvent.CameraRequested)
+        vm.onEvent(BillScanEvent.PermissionChanged(CameraPermissionStatus.Granted))
+        vm.onEvent(BillScanEvent.Resumed)
+
+        assertFalse(vm.state.value.showGalleryOnly)
+        assertTrue(vm.state.value.cameraGranted)
+    }
+
+    @Test
+    fun aResumeWithoutAPrompt_changesNothing() = runTest {
+        val vm = viewModel()
+        vm.onEvent(BillScanEvent.PermissionChanged(CameraPermissionStatus.Askable))
+
+        vm.onEvent(BillScanEvent.Resumed)
+
+        assertTrue(vm.state.value.showRationale)
+    }
+
+    @Test
+    fun onlyCloseLeaves() = runTest {
+        val vm = viewModel()
+        vm.onEvent(BillScanEvent.PermissionDeclined)
+
+        vm.onEvent(BillScanEvent.CloseTapped)
+
         assertEquals(BillScanEffect.NavigateBack, vm.effects.first())
     }
 
     @Test
-    fun notNowAndClose_bothLeave() = runTest {
-        val declining = viewModel()
-        declining.onEvent(BillScanEvent.PermissionDeclined)
+    fun theGalleryIsAttributedToWhereItWasOpened() = runTest {
+        val analytics = RecordingAnalytics()
+        val vm = viewModel(analytics)
+        vm.onEvent(BillScanEvent.PermissionChanged(CameraPermissionStatus.Askable))
 
-        val closing = viewModel()
-        closing.onEvent(BillScanEvent.CloseTapped)
+        vm.onEvent(BillScanEvent.GalleryTapped)
+        vm.onEvent(BillScanEvent.PermissionDeclined)
+        vm.onEvent(BillScanEvent.GalleryTapped)
+        vm.onEvent(BillScanEvent.PermissionChanged(CameraPermissionStatus.Granted))
+        vm.onEvent(BillScanEvent.GalleryTapped)
 
-        // Two dismiss controls sit side by side on the rationale. One intent, so one outcome.
-        assertEquals(declining.effects.first(), closing.effects.first())
+        assertEquals(
+            listOf("rationale", "denied", "viewfinder"),
+            analytics.properties(BillScannerTelemetry.Event.GALLERY_OPENED)
+                .map { it[BillScannerTelemetry.Key.SOURCE] },
+        )
+        assertEquals(BillScanEffect.PickFromGallery, vm.effects.first())
     }
 
     @Test
-    fun decliningIsReportedApartFromClosing() = runTest {
-        val declined = RecordingAnalytics()
-        viewModel(declined).onEvent(BillScanEvent.PermissionDeclined)
+    fun theRationaleIsReportedOncePerLook_withBlocked() = runTest {
+        val analytics = RecordingAnalytics()
+        val vm = viewModel(analytics)
 
-        val closed = RecordingAnalytics()
-        viewModel(closed).onEvent(BillScanEvent.CloseTapped)
+        vm.onEvent(BillScanEvent.PermissionChanged(CameraPermissionStatus.Askable))
+        vm.onEvent(BillScanEvent.PermissionChanged(CameraPermissionStatus.Askable))
+        vm.onEvent(BillScanEvent.PermissionChanged(CameraPermissionStatus.Blocked))
 
-        // Both navigate to the same place, but "refused the camera" and "changed my mind about
-        // scanning" are different drop-offs, and the funnel is what this feature is measured on.
-        assertEquals(1, declined.count(BillScannerTelemetry.Event.CAMERA_DECLINED))
-        assertEquals(0, closed.count(BillScannerTelemetry.Event.CAMERA_DECLINED))
+        assertEquals(
+            listOf(false, true),
+            analytics.properties(BillScannerTelemetry.Event.CAMERA_RATIONALE_SHOWN)
+                .map { it[BillScannerTelemetry.Key.BLOCKED] },
+        )
+    }
+
+    @Test
+    fun aGrantedCamera_neverReportsTheRationale() = runTest {
+        val analytics = RecordingAnalytics()
+        viewModel(analytics).onEvent(BillScanEvent.PermissionChanged(CameraPermissionStatus.Granted))
+
+        assertEquals(0, analytics.count(BillScannerTelemetry.Event.CAMERA_RATIONALE_SHOWN))
     }
 
     @Test
@@ -120,8 +184,7 @@ class BillScanViewModelTest {
 
     @Test
     fun decliningDoesNotStickAcrossAFreshScan() = runTest {
-        // A second visit asks again rather than remembering a refusal. Nothing carries the
-        // decline forward now that it ends the screen, and this is what says so.
+        // A second visit asks again rather than remembering a refusal.
         viewModel().onEvent(BillScanEvent.PermissionDeclined)
 
         assertTrue(viewModel().state.value.showRationale)

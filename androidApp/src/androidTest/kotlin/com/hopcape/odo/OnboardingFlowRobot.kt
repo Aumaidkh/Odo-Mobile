@@ -44,8 +44,8 @@ internal object Copy {
     const val WELCOME_CTA = "Get started"
     const val WELCOME_SIGN_IN = "Already using Odo? Sign in"
     const val DETAILS_TITLE = "Your car’s details"
-    const val VALUE_SCAN = "Scan your first bill"
-    const val VALUE_SKIP = "Not now — let me look around"
+    const val VALUE_SCAN = "Scan a service bill"
+    const val VALUE_SKIP = "Skip for now"
 
     /** What a refused save says. Its whole job is to not be silence. */
     const val SAVE_ERROR = "Couldn’t save that on your phone. Please try again."

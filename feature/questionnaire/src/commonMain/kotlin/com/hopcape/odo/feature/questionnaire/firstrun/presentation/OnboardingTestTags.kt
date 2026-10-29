@@ -15,6 +15,9 @@ package com.hopcape.odo.feature.questionnaire.firstrun.presentation
  * what the test is about to change.
  */
 object OnboardingTestTags {
+    const val INSURANCE_CONFIRM = "onboarding:insurance_confirm"
+    fun insuranceMonth(month: String) = "onboarding:insurance_month:$month"
+
     const val ODOMETER_FIELD = "onboarding:odometer"
     const val MAKE_FIELD = "onboarding:make"
     const val MODEL_FIELD = "onboarding:model"
@@ -23,4 +26,13 @@ object OnboardingTestTags {
     const val NAME_FIELD = "onboarding:name"
     const val LAST_SERVICE_DATE_FIELD = "onboarding:lastServiceDate"
     const val LAST_SERVICE_ODOMETER_FIELD = "onboarding:lastServiceOdometer"
+
+    // v2 setup
+    const val CHANGE_MAKE = "onboarding:v2:changeMake"
+    const val MODEL_SEARCH = "onboarding:v2:modelSearch"
+    const val YEAR_OLDER = "onboarding:v2:yearOlder"
+    const val SAVE_CAR = "onboarding:v2:save"
+    fun modelTile(name: String): String = "onboarding:v2:model:$name"
+    fun yearChip(year: Int): String = "onboarding:v2:year:$year"
+    fun fuelChip(fuel: String): String = "onboarding:v2:fuel:$fuel"
 }

@@ -1,5 +1,6 @@
 package com.hopcape.odo
 
+import com.hopcape.analytics.api.AnalyticsTracker
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -198,7 +199,9 @@ private fun OdoAppContent(
         onboarded = returning
         // A new install waits (bounded) for the first Remote Config fetch before the
         // video-onboarding flag is read — issue #351; a returning owner resolves at once.
-        startDestination = onboardingStartDestination(returning, onboardingConfig, koin.get<ConfigRefresher>())
+        val resolved = onboardingStartDestination(returning, onboardingConfig, koin.get<ConfigRefresher>())
+        firstRunVariantOf(resolved)?.let { koin.get<AnalyticsTracker>().setUserProperty(FIRST_RUN_VARIANT_PROPERTY, it) }
+        startDestination = resolved
     }
 
     // Its own effect, not folded into the one above: that one returns early on the

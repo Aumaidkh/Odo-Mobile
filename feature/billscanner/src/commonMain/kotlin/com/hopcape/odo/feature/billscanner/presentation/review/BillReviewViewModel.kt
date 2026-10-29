@@ -1,5 +1,8 @@
 package com.hopcape.odo.feature.billscanner.presentation.review
 
+import com.hopcape.odo.core.platform.review.ReviewTrigger
+import com.hopcape.odo.core.platform.review.ReviewPrompter
+import com.hopcape.odo.core.platform.review.NoopReviewPrompter
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.designsystem.text.UiText
@@ -47,6 +50,7 @@ internal class BillReviewViewModel(
     private val activeCar: ActiveCarProvider,
     private val currentOwner: CurrentOwnerProvider,
     private val telemetry: BillScannerTelemetry,
+    private val reviewPrompter: ReviewPrompter = NoopReviewPrompter,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(BillReviewUiState(photoKey = photoKey))
@@ -88,7 +92,11 @@ internal class BillReviewViewModel(
             _state.update { it.copy(submission = Submission.InFlight) }
             telemetry.billExtraction { scanBill(key) }.fold(
                 ifLeft = { error -> _state.update { it.copy(submission = error.toSubmissionFailure()) } },
-                ifRight = ::show,
+                ifRight = { bill ->
+                    show(bill)
+                    // A bill that read is the moment the scanner proved itself.
+                    reviewPrompter.maybeAsk(ReviewTrigger.FIRST_BILL)
+                },
             )
         }
     }

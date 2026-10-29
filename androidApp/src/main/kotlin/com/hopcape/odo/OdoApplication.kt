@@ -25,6 +25,8 @@ import com.hopcape.logging.api.LogUploadRunner
 import com.hopcape.logging.api.LoggerConfig
 import com.hopcape.logging.api.loggerConfig
 import com.hopcape.odo.core.common.BuildInfo
+import com.hopcape.odo.core.common.session.AppSession
+import com.hopcape.odo.core.common.session.LifecycleAppSession
 import com.hopcape.odo.core.domain.appstatus.AppStatusProvider
 import com.hopcape.odo.core.domain.device.DeviceRegistry
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
@@ -36,6 +38,7 @@ import com.hopcape.odo.core.config.ConfigRefresher
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.triptracker.TripTracker
 import com.hopcape.odo.core.triptracker.tripTrackerAndroidModule
+import com.hopcape.odo.infrastructure.database.car.VehicleCatalogRefresher
 import com.hopcape.odo.infrastructure.database.db.DriverFactory
 import com.hopcape.odo.infrastructure.firebase.analytics.FirebaseAnalyticsSink
 import com.hopcape.odo.infrastructure.firebase.auth.firebaseAuthAndroidModule
@@ -43,6 +46,7 @@ import com.hopcape.odo.infrastructure.firebase.crashlytics.FirebaseCrashlyticsSi
 import com.hopcape.odo.infrastructure.firebase.performance.FirebasePerformanceSink
 import com.hopcape.odo.di.initKoin
 import com.hopcape.odo.di.odoAnalyticsEvents
+import com.hopcape.odo.splash.SplashNightMode
 import com.hopcape.performance.api.APM
 import com.hopcape.performance.api.PerformanceConfig
 import com.hopcape.performance.api.Span
@@ -92,6 +96,9 @@ class OdoApplication : Application(), Configuration.Provider {
      */
     val appSessionId: String = UUID.randomUUID().toString()
 
+    /** Foreground state and session id for request telemetry, driven by ProcessLifecycle. */
+    private val lifecycleSession = LifecycleAppSession { UUID.randomUUID().toString() }
+
     /** The cold-start span — opened in [onCreate], ended in [MainActivity] on first frame. */
     lateinit var coldStartSpan: Span
         private set
@@ -138,6 +145,7 @@ class OdoApplication : Application(), Configuration.Provider {
         initKoin(
             platformModule = module {
                 single { DriverFactory(androidContext()) }
+                single<AppSession> { lifecycleSession }
                 // Copying a picked file into app storage needs a Context, so the store is
                 // bound by the platform module rather than in common code.
                 includes(corePlatformAndroidModule)
@@ -174,6 +182,7 @@ class OdoApplication : Application(), Configuration.Provider {
         KoinPlatform.getKoin().get<LogUploadRunner>().setAutoUploadConsent(granted = BuildConfig.DEBUG)
 
         applyAnalyticsConsent()
+        applySplashNightMode()
 
         armTripTracking()
 
@@ -187,6 +196,7 @@ class OdoApplication : Application(), Configuration.Provider {
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             object : DefaultLifecycleObserver {
                 override fun onStart(owner: LifecycleOwner) {
+                    lifecycleSession.onForeground()
                     HAnalytics.flush()
                     // Pull whatever changed while the app was away. Sign-in and local
                     // writes used to be the only things that ever asked, so an install
@@ -199,6 +209,9 @@ class OdoApplication : Application(), Configuration.Provider {
                     // shape as the one KoinInit's own startup coroutine uses — refresh()
                     // never throws, so there is nothing here for a crash to come from.
                     CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+                        // Foreground only, so a background wake never fetches the catalog.
+                        // Returns at once; the picker reads the local copy meanwhile.
+                        KoinPlatform.getKoin().get<VehicleCatalogRefresher>().refreshInBackground()
                         KoinPlatform.getKoin().get<AppStatusProvider>().refresh()
                         // The one fetch the config system does. Reads never fetch on
                         // their own, so a screen reading three keys does not trigger
@@ -219,7 +232,10 @@ class OdoApplication : Application(), Configuration.Provider {
                 // The app just became killable — one of AsyncSink's five flush triggers
                 // (docs/LOGGING_PLAN.md §5). A rotation still looks like onStop+onStart, but
                 // flushing early on a rotation is harmless: it just drains the buffer sooner.
-                override fun onStop(owner: LifecycleOwner) = HLogger.flush()
+                override fun onStop(owner: LifecycleOwner) {
+                    lifecycleSession.onBackground()
+                    HLogger.flush()
+                }
             },
         )
         watchConnectivity()
@@ -288,6 +304,16 @@ class OdoApplication : Application(), Configuration.Provider {
     private fun armTripTracking() {
         CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
             KoinPlatform.getKoin().get<TripTracker>().armFromPersistedState()
+        }
+    }
+
+    /** Keeps the system splash in the palette the owner picked, from the next launch on. */
+    private fun applySplashNightMode() {
+        CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+            KoinPlatform.getKoin().get<AppSettingsRepository>().observe()
+                .map { it.theme }
+                .distinctUntilChanged()
+                .collect { SplashNightMode.apply(this@OdoApplication, it) }
         }
     }
 

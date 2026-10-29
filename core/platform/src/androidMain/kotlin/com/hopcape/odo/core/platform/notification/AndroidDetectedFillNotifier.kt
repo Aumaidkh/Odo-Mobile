@@ -14,6 +14,8 @@ import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.hopcape.odo.core.common.notification.NotificationOpen
+import com.hopcape.odo.core.common.notification.notificationLaunchIntent
 import com.hopcape.odo.core.platform.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -181,8 +183,7 @@ internal class AndroidDetectedFillNotifier(
      * intent, and an immutable one cannot be rewritten by whoever holds it.
      */
     private fun editIntent(notice: DetectedFillNotice): PendingIntent? {
-        val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
-            ?: return null
+        val launch = context.notificationLaunchIntent(NotificationOpen.DETECTED_FILL) ?: return null
         launch.putExtra(EXTRA_DRAFT, notice.draftPayload)
         return PendingIntent.getActivity(
             context,

@@ -86,6 +86,7 @@ internal class SupabaseBillLineClassifier(
             telemetry.rejected(OPERATION, RESOURCE, response.status.value)
             return emptyMap()
         }
+        telemetry.succeeded(OPERATION, RESOURCE)
 
         val body = SupabaseJson.decodeFromString(
             ClassifyResponse.serializer(),

@@ -2,9 +2,11 @@ package com.hopcape.odo.feature.dashboard.presentation.home
 
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.logging.api.Logger
-import com.hopcape.odo.core.common.id.IdGenerator
-import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.logging.api.TraceContext as LogTrace
+import com.hopcape.odo.core.common.id.IdGenerator
+import com.hopcape.odo.core.domain.alerts.model.CarAttention
+import com.hopcape.odo.core.domain.shared.failureCode
+import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.TraceContext as PerfTrace
 import kotlin.coroutines.CoroutineContext
 
@@ -16,7 +18,7 @@ import kotlin.coroutines.CoroutineContext
  * [flowTrace] is minted per instance (a Koin `factory`, so one instance covers one visit),
  * and [op] returns the child-trace context to launch an async op under.
  *
- * **No PII.** Counts, bands, booleans and type names only — never the owner's name, a
+ * **No PII.** Counts, bands, booleans and kind names only — never the owner's name, a
  * registration number, a workshop, or what a document says. That a car has a lapsed PUC is
  * a fact about a record; which car and whose is not this file's business.
  *
@@ -95,7 +97,7 @@ internal class HomeTelemetry(
     }
 
     /**
-     * The attention card was acted on. [kind] is the case's type name, never the document
+     * The attention card was acted on. [kind] is the case's name, never the document
      * itself — which kinds of deadline owners actually tap is what decides whether the
      * ranking is the right ranking.
      */
@@ -196,7 +198,7 @@ internal class HomeTelemetry(
      * showing, and an unhandled failure inside a `collect` takes the ViewModel's scope down.
      */
     fun readFailed(cause: Throwable) {
-        val fields = mapOf(Key.REASON to (cause::class.simpleName ?: UNKNOWN))
+        val fields = mapOf(Key.REASON to failureCode(cause))
         analytics.track(Event.READ_FAILED, fields)
         logger.error(TAG, Event.READ_FAILED, tc = flowTrace.toLog(), fields = fields)
     }
@@ -207,7 +209,6 @@ internal class HomeTelemetry(
     private companion object {
         const val TAG = "HOME"
         const val FLOW = "home"
-        const val UNKNOWN = "Unknown"
     }
 
     /*
@@ -248,4 +249,12 @@ internal class HomeTelemetry(
         const val REASON = "reason"
         const val ENTRY = "entry"
     }
+}
+
+/** The attention case's analytics name, written out so R8 cannot shorten it. */
+internal fun CarAttention.analyticsKind(): String = when (this) {
+    is CarAttention.DocumentLapsed -> "DocumentLapsed"
+    is CarAttention.DocumentExpiring -> "DocumentExpiring"
+    is CarAttention.ServiceOverdue -> "ServiceOverdue"
+    is CarAttention.ServiceDue -> "ServiceDue"
 }

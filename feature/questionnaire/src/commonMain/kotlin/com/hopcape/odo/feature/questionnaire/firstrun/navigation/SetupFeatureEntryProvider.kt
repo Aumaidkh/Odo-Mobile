@@ -21,6 +21,11 @@ import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
+import com.hopcape.odo.core.navigation.FirstRunVariant
+import com.hopcape.odo.feature.questionnaire.firstrun.presentation.v2.SetupV2Effect
+import com.hopcape.odo.feature.questionnaire.firstrun.presentation.v2.SetupV2Screen
+import com.hopcape.odo.feature.questionnaire.firstrun.presentation.v2.SetupV2ViewModel
+import org.koin.core.parameter.parametersOf
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
@@ -42,7 +47,15 @@ internal class SetupFeatureEntryProvider(
     private val navigationManager: NavigationManager,
 ) : FeatureEntryProvider {
     override fun EntryProviderScope<NavKey>.registerEntries() {
-        entry<OdoDestination.Onboarding> { SetupRoute(navigationManager) }
+        entry<OdoDestination.Onboarding> { key ->
+            // v2 always arrives with the Welcome tile's make; anything else is the v1 form.
+            val make = key.make
+            if (key.variant == FirstRunVariant.V2 && make != null) {
+                SetupV2Route(navigationManager, make, key.resume)
+            } else {
+                SetupRoute(navigationManager)
+            }
+        }
     }
 }
 
@@ -107,3 +120,37 @@ internal fun SetupRoute(navigationManager: NavigationManager) {
     }
 }
 
+
+/** The v2 setup route. The value screen is pushed on top, so back returns to Year and fuel. */
+@Composable
+internal fun SetupV2Route(navigationManager: NavigationManager, make: String, resume: Boolean) {
+    val viewModel = koinViewModel<SetupV2ViewModel>(key = "setup-v2-$make-$resume") { parametersOf(make, resume) }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var failure by remember { mutableStateOf<UiText?>(null) }
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            SetupV2Effect.NavigateBack -> navigationManager.back()
+            is SetupV2Effect.SaveFailed -> failure = effect.message
+            SetupV2Effect.ShowValue -> navigationManager.navigateTo(
+                OdoDestination.CarValue(firstRun = true, variant = FirstRunVariant.V2),
+            )
+        }
+    }
+
+    val failureText = failure?.asString()
+    LaunchedEffect(failureText) {
+        if (failureText == null) return@LaunchedEffect
+        snackbarHostState.showSnackbar(failureText)
+        failure = null
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        SetupV2Screen(state = state, onEvent = viewModel::onEvent)
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
+        )
+    }
+}

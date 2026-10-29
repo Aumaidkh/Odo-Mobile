@@ -1,5 +1,8 @@
 package com.hopcape.odo.di
 
+import com.hopcape.odo.core.platform.notification.ServiceDueReminderScheduler
+import com.hopcape.odo.core.platform.notification.DriveSummaryNotifier
+import com.hopcape.odo.telemetry.appTelemetryModule
 import com.hopcape.analytics.api.analyticsModule
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.crashreporting.api.crashReportingModule
@@ -10,7 +13,6 @@ import com.hopcape.odo.core.common.coreCommonModule
 import com.hopcape.odo.core.config.coreConfigModule
 import com.hopcape.odo.core.data.coreDataModule
 import com.hopcape.odo.core.navigation.coreNavigationModule
-import com.hopcape.odo.core.domain.appstatus.AppStatusProvider
 import com.hopcape.odo.core.domain.auth.SessionRestore
 import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
 import com.hopcape.odo.core.data.subscription.PurchaseWatcher
@@ -93,6 +95,7 @@ fun initKoin(
         performanceModule,
         crashReportingModule,
         coreNavigationModule,
+        appTelemetryModule,
         // The SQLDelight database and the LocalDataSource adapters coreDataModule's
         // repositories depend on.
         databaseInfrastructureModule,
@@ -200,15 +203,15 @@ fun initKoin(
         // a reinstall or a restore-from-backup, and a document filed before this existed has
         // no job at all — so every launch re-derives the whole schedule from the database.
         application.koin.get<DocumentReminderScheduler>().refresh()
+        application.koin.get<ServiceDueReminderScheduler>().refresh()
+        application.koin.get<DriveSummaryNotifier>().rearm()
         // Unconditional: LogUploadCoordinator gates on consent per run (D3, plan §1), so
         // there is nothing to toggle here when consent changes — the next scheduled run
         // just starts working once it is granted. KEEP-policy inside the scheduler makes a
         // repeat call on every launch a no-op once the periodic job already exists.
         application.koin.get<LogUploadScheduler>().schedulePeriodic()
-        // The app-status gate's first real answer (docs/APP_STATUS_PLAN.md §5.3). Never
-        // throws — every failure inside it already collapses to "keep the fail-open
-        // default" — so unlike SessionRestore above, no try/catch is needed here.
-        application.koin.get<AppStatusProvider>().refresh()
+        // App status is not fetched here: a background wake would fetch it for nobody. Each
+        // platform's foreground hook does, which on a cold start is before the gate gives up.
     }
 }
 

@@ -29,6 +29,12 @@ internal class EventRegistry(schemas: List<EventSchema>) {
                         add("Property '$propertyName' expected $expectedType, got ${value::class.simpleName}")
                 }
             }
+            schema.optionalProperties.forEach { (propertyName, expectedType) ->
+                val value = properties[propertyName]
+                if (value != null && !expectedType.matches(value)) {
+                    add("Property '$propertyName' expected $expectedType, got ${value::class.simpleName}")
+                }
+            }
         }
 
         return if (reasons.isEmpty()) SchemaValidationResult.Valid

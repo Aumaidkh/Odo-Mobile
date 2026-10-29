@@ -109,7 +109,7 @@ class PhoneViewModelTest {
         advanceUntilIdle()
 
         val refused = analytics.events.single { it.first == AuthTelemetry.EVENT_PHONE_REFUSED }.second
-        assertEquals<Any?>("InvalidPhoneNumber", refused[AuthTelemetry.Key.REASON])
+        assertEquals<Any?>("invalid_phone_number", refused[AuthTelemetry.Key.REASON])
         val tracked = analytics.events.flatMap { (_, props) -> props.values.map { it.toString() } }
         assertTrue(tracked.none { it.contains("9812345") }, "a number was tracked: $tracked")
     }

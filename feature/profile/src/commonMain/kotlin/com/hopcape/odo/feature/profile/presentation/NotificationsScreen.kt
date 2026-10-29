@@ -60,6 +60,8 @@ import com.hopcape.odo.feature.profile.resources.pf_notif_health_sub
 import com.hopcape.odo.feature.profile.resources.pf_notif_insights
 import com.hopcape.odo.feature.profile.resources.pf_notif_monthly
 import com.hopcape.odo.feature.profile.resources.pf_notif_monthly_sub
+import com.hopcape.odo.feature.profile.resources.pf_notif_drive_summary
+import com.hopcape.odo.feature.profile.resources.pf_notif_drive_summary_sub
 import com.hopcape.odo.feature.profile.resources.pf_notif_overcharge
 import com.hopcape.odo.feature.profile.resources.pf_notif_overcharge_sub
 import com.hopcape.odo.feature.profile.resources.pf_notif_push
@@ -155,6 +157,13 @@ internal fun NotificationsScreen(
                     preferences.monthlySummary,
                     { onEvent(NotificationsEvent.MonthlySummaryToggled(it)) },
                     supporting = stringResource(Res.string.pf_notif_monthly_sub),
+                )
+                RowDivider()
+                OdoSwitchRow(
+                    stringResource(Res.string.pf_notif_drive_summary),
+                    preferences.driveSummary,
+                    { onEvent(NotificationsEvent.DriveSummaryToggled(it)) },
+                    supporting = stringResource(Res.string.pf_notif_drive_summary_sub),
                 )
                 RowDivider()
                 OdoSwitchRow(

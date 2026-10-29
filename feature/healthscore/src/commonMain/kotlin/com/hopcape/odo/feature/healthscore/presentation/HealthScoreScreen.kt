@@ -42,7 +42,7 @@ import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
 import com.hopcape.odo.core.designsystem.icons.IcCaretUpFilled
-import com.hopcape.odo.core.designsystem.icons.IcCurrencyDollar
+import com.hopcape.odo.core.designsystem.icons.IcRupee
 import com.hopcape.odo.core.designsystem.icons.IcGearFilled
 import com.hopcape.odo.core.designsystem.icons.IcInfo
 import com.hopcape.odo.core.designsystem.icons.IcLightningFilled
@@ -505,7 +505,7 @@ private fun infoBandRange(band: HealthBand): String = stringResource(
 private fun factorIcon(kind: HealthFactorKind): ImageVector = when (kind) {
     HealthFactorKind.MAINTENANCE -> IcGearFilled
     HealthFactorKind.DOCUMENTATION -> IcShieldCheck
-    HealthFactorKind.COST_EFFICIENCY -> IcCurrencyDollar
+    HealthFactorKind.COST_EFFICIENCY -> IcRupee
     HealthFactorKind.HISTORY -> IcSpeedometer
 }
 

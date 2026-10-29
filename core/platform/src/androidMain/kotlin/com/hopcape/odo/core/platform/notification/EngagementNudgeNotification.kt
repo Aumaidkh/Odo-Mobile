@@ -10,6 +10,8 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.hopcape.odo.core.common.notification.NotificationOpen
+import com.hopcape.odo.core.common.notification.notificationLaunchIntent
 import com.hopcape.odo.core.platform.R
 
 /**
@@ -37,7 +39,7 @@ internal object EngagementNudgeNotification {
             // Below a reminder on purpose: a nudge is Odo's idea, not the owner's.
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setAutoCancel(true)
-            .setContentIntent(openAppIntent(context))
+            .setContentIntent(openAppIntent(context, nudge))
             .build()
 
         // Keyed on the kind, so a second nudge of one kind replaces the unread first rather
@@ -62,11 +64,13 @@ internal object EngagementNudgeNotification {
         context.getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
     }
 
-    private fun openAppIntent(context: Context): PendingIntent? {
-        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return null
+    private fun openAppIntent(context: Context, nudge: String): PendingIntent? {
+        val intent = context.notificationLaunchIntent(NotificationOpen.ENGAGEMENT_NUDGE)
+            ?.putExtra(NotificationOpen.EXTRA_NUDGE, nudge) ?: return null
+        // Per nudge, so a second nudge in the shade cannot rewrite the first one's extra.
         return PendingIntent.getActivity(
             context,
-            0,
+            nudge.hashCode(),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )

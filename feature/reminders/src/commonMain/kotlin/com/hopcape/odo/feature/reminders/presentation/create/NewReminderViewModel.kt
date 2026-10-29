@@ -17,11 +17,13 @@ import com.hopcape.odo.feature.reminders.domain.usecase.ObserveCurrentOdometerUs
 import com.hopcape.odo.feature.reminders.domain.usecase.ObserveCustomReminderUseCase
 import com.hopcape.odo.feature.reminders.domain.usecase.UpdateCustomReminderUseCase
 import com.hopcape.odo.feature.reminders.presentation.RemindersTelemetry
+import com.hopcape.odo.feature.reminders.presentation.analyticsName
 import com.hopcape.odo.feature.reminders.resources.Res
 import com.hopcape.odo.feature.reminders.resources.rm_new_error_name_blank
 import com.hopcape.odo.feature.reminders.resources.rm_new_error_name_long
 import com.hopcape.odo.feature.reminders.resources.rm_new_error_save
 import com.hopcape.odo.feature.reminders.resources.rm_new_error_start_past
+import kotlin.time.Clock
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -40,7 +42,6 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Clock
 
 /**
  * State holder for the create/edit form. Holds [NewReminderUiState], consumes
@@ -169,7 +170,7 @@ internal class NewReminderViewModel(
 
         viewModelScope.launch(telemetry.op(OP_SAVE)) {
             telemetry.reminderSave(
-                cadence = cadence::class.simpleName ?: "",
+                cadence = cadence.analyticsName(),
                 preset = snapshot.preset?.name,
                 viaSuggestion = false,
                 edit = reminderId != null,

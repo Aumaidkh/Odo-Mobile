@@ -16,6 +16,9 @@ internal interface AnalyticsDestination {
     /** Drops the identity. Defaulted, so a destination opts in by overriding. */
     fun forget() {}
 
+    /** Sets one user property. Defaulted, so a destination opts in by overriding. */
+    fun setUserProperty(name: String, value: String) {}
+
     /** Returns whether the vendor SDK accepted the event — decides whether it is retried. */
     fun track(event: AnalyticsEvent): Boolean
     fun flush()

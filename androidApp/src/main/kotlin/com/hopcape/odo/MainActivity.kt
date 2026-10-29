@@ -1,5 +1,11 @@
 package com.hopcape.odo
 
+import kotlinx.coroutines.launch
+import com.hopcape.odo.core.platform.review.ReviewTrigger
+import com.hopcape.odo.core.platform.review.ReviewPrompter
+import androidx.lifecycle.withResumed
+import androidx.lifecycle.lifecycleScope
+import com.hopcape.odo.core.navigation.OdoDestination
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -7,9 +13,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import android.content.Intent
 import com.hopcape.logging.api.HLogger
+import com.hopcape.odo.core.common.notification.NotificationOpen
 import com.hopcape.odo.core.navigation.NavigationCommand
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.feature.refuel.RefuelDeepLinks
+import com.hopcape.odo.splash.IgnitionSplashExit
+import com.hopcape.odo.telemetry.AppTelemetry
 import com.hopcape.odo.widget.WidgetLaunch
 import com.hopcape.performance.api.APM
 import org.koin.android.ext.android.inject
@@ -17,6 +26,8 @@ import org.koin.android.ext.android.inject
 class MainActivity : ComponentActivity() {
 
     private val navigationManager: NavigationManager by inject()
+    private val appTelemetry: AppTelemetry by inject()
+    private val reviewPrompter: ReviewPrompter by inject()
 
     /** Whether a real screen is composed. The splash polls this every frame. */
     private var contentReady = false
@@ -26,6 +37,12 @@ class MainActivity : ComponentActivity() {
         // condition holds the branded window through the startup gate (#473).
         val splashScreen = installSplashScreen()
         splashScreen.setKeepOnScreenCondition { !contentReady }
+        splashScreen.setOnExitAnimationListener { splash ->
+            // The library resets the bars from the theme here and again on remove(), so
+            // edge-to-edge is applied again after each.
+            enableEdgeToEdge()
+            IgnitionSplashExit.play(splash, onRemoved = { enableEdgeToEdge() })
+        }
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
@@ -44,7 +61,10 @@ class MainActivity : ComponentActivity() {
 
         // After setContent, so the host is already collecting when the command is emitted.
         // The manager buffers, so the ordering is belt and braces rather than load-bearing.
-        handleLaunchIntent(intent)
+        // A restore after process death replays the original intent, extras and all, so only a
+        // fresh launch counts its notification.
+        val openedFrom = countNotificationOpen(intent, count = savedInstanceState == null)
+        handleLaunchIntent(intent, openedFrom)
 
         // The cold-start span closes only once the first meaningful frame has
         // actually been drawn — not at Application.onCreate() — so it measures the
@@ -68,7 +88,32 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleLaunchIntent(intent)
+        val openedFrom = countNotificationOpen(intent, count = true)
+        handleLaunchIntent(intent, openedFrom)
+    }
+
+    /**
+     * Sends one `notification_opened` per tap and drops the extra. Returns the kind on a fresh
+     * open only, so a restore cannot count or route twice.
+     */
+    private fun countNotificationOpen(intent: Intent?, count: Boolean): String? {
+        val kind = intent?.getStringExtra(NotificationOpen.EXTRA_KIND) ?: return null
+        intent.removeExtra(NotificationOpen.EXTRA_KIND)
+        if (!count) return null
+        appTelemetry.notificationOpened(kind)
+        if (kind in REMINDER_KINDS) {
+            // After resume, so the review sheet has an Activity to attach to.
+            lifecycleScope.launch {
+                lifecycle.withResumed {}
+                reviewPrompter.maybeAsk(ReviewTrigger.FIRST_REMINDER)
+            }
+        }
+        return kind
+    }
+
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launch { reviewPrompter.maybeAskForTripDays() }
     }
 
     /**
@@ -79,7 +124,7 @@ class MainActivity : ComponentActivity() {
      * mid-flow, and dropping them on the home screen loses the fill they were about to
      * confirm.
      */
-    private fun handleLaunchIntent(intent: Intent?) {
+    private fun handleLaunchIntent(intent: Intent?, openedFrom: String?) {
         val confirm = RefuelDeepLinks.confirmDestinationFor(
             intent?.getStringExtra(RefuelDeepLinks.EXTRA_DRAFT),
         )
@@ -97,6 +142,19 @@ class MainActivity : ComponentActivity() {
             // this mutates exactly the copy a later recreation would read.
             intent?.removeExtra(RefuelDeepLinks.EXTRA_DRAFT)
             navigationManager.navigate(NavigationCommand.NavigateTo(confirm))
+            return
+        }
+        if (NudgeLaunch.handle(intent, navigationManager)) return
+        if (openedFrom == NotificationOpen.SERVICE_DUE) {
+            navigationManager.navigate(NavigationCommand.NavigateTo(OdoDestination.Reminders.List))
+            return
+        }
+        if (openedFrom == NotificationOpen.DRIVE_SUMMARY) {
+            navigationManager.navigate(NavigationCommand.NavigateTo(OdoDestination.Garage.Home))
+            return
+        }
+        if (openedFrom == NotificationOpen.WEEKLY_SUMMARY) {
+            navigationManager.navigate(NavigationCommand.NavigateTo(OdoDestination.CostTracker.Home))
             return
         }
         // Same reasoning for the widget: its action would otherwise reopen the pump scanner
@@ -130,5 +188,8 @@ class MainActivity : ComponentActivity() {
     private companion object {
         /** How long the splash may hold before it gives up on the gate and shows the app. */
         const val SPLASH_TIMEOUT_MS = 5_000L
+
+        /** Notification kinds that count as a reminder for the review prompt. */
+        val REMINDER_KINDS = setOf(NotificationOpen.DOCUMENT_REMINDER, NotificationOpen.CUSTOM_REMINDER)
     }
 }

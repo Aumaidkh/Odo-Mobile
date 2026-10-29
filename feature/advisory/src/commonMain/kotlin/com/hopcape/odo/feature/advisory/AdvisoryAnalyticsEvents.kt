@@ -18,7 +18,33 @@ val advisoryAnalyticsEvents: List<EventSchema> = listOf(
             AdvisoryTelemetry.Key.FIRST_RUN to PropertyType.BOOLEAN,
         ),
     ),
-    EventSchema(AdvisoryTelemetry.Event.SCAN_CLICKED),
-    EventSchema(AdvisoryTelemetry.Event.FIRST_RUN_SKIPPED),
+    EventSchema(
+        AdvisoryTelemetry.Event.SCAN_CLICKED,
+        mapOf(AdvisoryTelemetry.Key.FIRST_RUN to PropertyType.BOOLEAN),
+    ),
+    EventSchema(
+        AdvisoryTelemetry.Event.FIRST_RUN_FINISHED,
+        mapOf(AdvisoryTelemetry.Key.VIA to PropertyType.STRING),
+    ),
+    EventSchema(AdvisoryTelemetry.Event.AUTO_ODO_OFFERED),
+    EventSchema(AdvisoryTelemetry.Event.AUTO_ODO_OFFER_ACCEPTED),
+    EventSchema(AdvisoryTelemetry.Event.AUTO_ODO_CARD_SEEN),
+    EventSchema(
+        AdvisoryTelemetry.Event.WHY_RANGE_TOGGLED,
+        mapOf(AdvisoryTelemetry.Key.EXPANDED to PropertyType.BOOLEAN),
+    ),
+    EventSchema(
+        AdvisoryTelemetry.Event.FIRST_RUN_SKIPPED,
+        mapOf(AdvisoryTelemetry.Key.VIA to PropertyType.STRING),
+    ),
     EventSchema(AdvisoryTelemetry.Event.SHARE_CLICKED),
+    EventSchema(
+        AdvisoryTelemetry.Event.CHECKLIST_SHOWN,
+        mapOf(
+            AdvisoryTelemetry.Key.DUE to PropertyType.INT,
+            AdvisoryTelemetry.Key.PRICED to PropertyType.INT,
+            AdvisoryTelemetry.Key.ENTRY to PropertyType.STRING,
+        ),
+    ),
+    EventSchema(AdvisoryTelemetry.Event.CHECKLIST_SAVE_CLICKED),
 )

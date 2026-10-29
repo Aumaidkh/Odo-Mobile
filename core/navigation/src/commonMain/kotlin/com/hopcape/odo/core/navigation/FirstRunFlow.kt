@@ -17,12 +17,28 @@ package com.hopcape.odo.core.navigation
  * lands can never replay the first run (issue #352).
  */
 fun isFirstRunStep(destination: OdoDestination): Boolean = when (destination) {
-    OdoDestination.Welcome,
+    is OdoDestination.Welcome,
     OdoDestination.WelcomeVideo,
-    OdoDestination.Onboarding,
+    is OdoDestination.Onboarding,
     -> true
 
     is OdoDestination.CarValue -> destination.firstRun
 
     else -> false
+}
+
+/** A first-run step, or the scanner the value screen opened during first run. */
+fun isFirstRunExitStep(destination: OdoDestination): Boolean = when (destination) {
+    is OdoDestination.BillScanner.Capture -> destination.firstRun
+    is OdoDestination.BillScanner.Review -> destination.firstRun
+    else -> isFirstRunStep(destination)
+}
+
+/**
+ * Ends first run with Home at the bottom of the stack and [destination] on top, so back from
+ * [destination] lands on Home and never re-enters first run.
+ */
+fun NavigationManager.leaveFirstRunTo(destination: OdoDestination) {
+    finishFlow(OdoDestination.Home, ::isFirstRunExitStep)
+    if (destination != OdoDestination.Home) navigateTo(destination)
 }

@@ -27,6 +27,9 @@ internal class RecordingAnalytics : AnalyticsTracker {
 
     /** How many times [name] was tracked. */
     fun count(name: String): Int = events.count { it.first == name }
+
+    /** The properties of every [name] event, in order. */
+    fun properties(name: String): List<Map<String, Any?>> = events.filter { it.first == name }.map { it.second }
 }
 
 private object NoopLogger : Logger {

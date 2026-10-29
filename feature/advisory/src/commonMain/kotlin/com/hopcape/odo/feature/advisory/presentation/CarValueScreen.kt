@@ -60,14 +60,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoDivider
-import com.hopcape.odo.core.designsystem.component.OdoIconButton
-import com.hopcape.odo.core.designsystem.component.OdoSegmentedProgress
-import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.shared.VehicleSegment
 import com.hopcape.odo.core.domain.car.catalog.SegmentCatalog
 import com.hopcape.odo.feature.advisory.resources.adv_value_fr_band_note
-import com.hopcape.odo.feature.advisory.resources.adv_value_fr_basis
 import com.hopcape.odo.feature.advisory.resources.adv_value_fr_bills_many
 import com.hopcape.odo.feature.advisory.resources.adv_value_fr_bills_none
 import com.hopcape.odo.feature.advisory.resources.adv_value_fr_bills_one
@@ -79,6 +75,9 @@ import com.hopcape.odo.feature.advisory.resources.adv_value_fr_fuel_petrol
 import com.hopcape.odo.feature.advisory.resources.adv_value_fr_record_body
 import com.hopcape.odo.feature.advisory.resources.adv_value_fr_record_label
 import com.hopcape.odo.feature.advisory.resources.adv_value_fr_scan
+import com.hopcape.odo.feature.advisory.resources.adv_value_fr_odo_cta
+import com.hopcape.odo.feature.advisory.resources.adv_value_fr_odo_body
+import com.hopcape.odo.feature.advisory.resources.adv_value_fr_odo_title
 import com.hopcape.odo.feature.advisory.resources.adv_value_fr_segment_hatchback
 import com.hopcape.odo.feature.advisory.resources.adv_value_fr_segment_muv
 import com.hopcape.odo.feature.advisory.resources.adv_value_fr_segment_sedan
@@ -87,6 +86,35 @@ import com.hopcape.odo.feature.advisory.resources.adv_value_fr_skip
 import com.hopcape.odo.feature.advisory.resources.adv_value_fr_title
 import com.hopcape.odo.feature.advisory.resources.adv_value_fr_today_label
 import com.hopcape.odo.feature.advisory.resources.adv_value_fr_today_label_partial
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalHapticFeedback
+import com.hopcape.odo.core.designsystem.component.OdoEntrance
+import com.hopcape.odo.core.designsystem.component.OdoExpandableRow
+import com.hopcape.odo.core.designsystem.component.OdoCarMake
+import com.hopcape.odo.core.designsystem.component.OdoMakeLogo
+import com.hopcape.odo.core.designsystem.component.OdoGaugeRange
+import com.hopcape.odo.core.designsystem.component.OdoStepHeader
+import com.hopcape.odo.core.designsystem.component.OdoTickGauge
+import com.hopcape.odo.feature.advisory.resources.adv_value_fr_why
+import com.hopcape.odo.feature.advisory.resources.adv_value_fr_basis
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -122,7 +150,24 @@ internal fun CarValueScreen(
     // First run owns its own chrome: the flow is still running, so the progress carries on
     // and the two ways out are the scan and "not now" rather than a title bar and share.
     if (state.firstRun && display != null) {
-        FirstRunEstimate(display, state.odometerAssumed, onEvent, modifier)
+        FirstRunEstimate(display, state, onEvent, modifier)
+        return
+    }
+    // Only the first-run chrome while the estimate loads, so the garage title never flashes.
+    if (state.firstRun && state.isLoading) {
+        Column(modifier.fillMaxSize().background(OdoTheme.colors.bg).statusBarsPadding()) {
+            OdoStepHeader(
+                current = FIRST_RUN_STEP,
+                total = state.firstRunSteps,
+                onBack = { onEvent(CarValueEvent.BackClicked) },
+                backContentDescription = stringResource(Res.string.adv_value_cd_back),
+                progressContentDescription = stringResource(
+                    Res.string.adv_value_fr_cd_progress,
+                    FIRST_RUN_STEP,
+                    state.firstRunSteps,
+                ),
+            )
+        }
         return
     }
 
@@ -300,6 +345,7 @@ private fun CarValueNoRecordPreview() = OdoPreview(padded = false) {
     PreviewScreen(
         CarValueDisplay(
             shortName = "Swift",
+            year = 2019,
             basis = "2019 Swift · Petrol · hatchback segment",
             provenServices = 0,
             carSummary = "2022 Baleno Zeta · 38,400 km · Srinagar",
@@ -317,6 +363,7 @@ private fun CarValueWithRecordPreview() = OdoPreview(padded = false) {
     PreviewScreen(
         CarValueDisplay(
             shortName = "Swift",
+            year = 2019,
             basis = "2019 Swift · Petrol · hatchback segment",
             provenServices = 0,
             carSummary = "2019 Creta SX · 71,200 km · Pune",
@@ -325,6 +372,27 @@ private fun CarValueWithRecordPreview() = OdoPreview(padded = false) {
             hasNoRecord = false,
             isRecordComplete = false,
         ),
+    )
+}
+
+/** First run in v2: three steps, the new title, and the auto-odometer card. */
+@OdoThemePreviews
+@Composable
+private fun CarValueFirstRunPreview() = OdoPreview(padded = false) {
+    FirstRunEstimate(
+        display = CarValueDisplay(
+            shortName = "Creta",
+            year = 2022,
+            basis = "2022 Creta · Petrol · SUV segment",
+            provenServices = 0,
+            carSummary = "2022 Creta",
+            today = "Rs. 11.2L–12.6L",
+            recordWorth = "+Rs. 62,000",
+            hasNoRecord = true,
+            isRecordComplete = false,
+        ),
+        state = CarValueUiState(firstRun = true, offerAutoOdometer = true, firstRunSteps = 3),
+        onEvent = {},
     )
 }
 
@@ -340,63 +408,126 @@ private fun PreviewScreen(display: CarValueDisplay) {
     }
 }
 
-/* ------------------------------ First run · step 3 of 4 ------------------------------ */
+/* ------------------------------ First run · step 3 ------------------------------ */
 
 /**
- * The value screen as first run shows it.
- *
- * Setup has just taken four answers and given nothing back. This screen is the payment: a
- * figure the owner does not know, and under it the one number they can change. The gap is
- * the argument, and "Scan your first bill" is the way to act on it.
- *
- * The band, the note under it and the badge all say the same thing in three registers,
- * deliberately — an estimate read off a segment average must not be mistaken for a
- * valuation of this car.
+ * The value screen as first run shows it: a dial with today's band and the record premium,
+ * then the figures. Only the scan and Skip are pinned; everything else scrolls.
  */
 @Composable
 private fun FirstRunEstimate(
     display: CarValueDisplay,
-    odometerAssumed: Boolean,
+    state: CarValueUiState,
     onEvent: (CarValueEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
+            .background(OdoTheme.colors.bg)
             .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(horizontal = OdoTheme.spacing.screenEdge),
+            .navigationBarsPadding(),
     ) {
-        OdoIconButton(
-            imageVector = IcArrowLeft,
-            contentDescription = stringResource(Res.string.adv_value_cd_back),
-            onClick = { onEvent(CarValueEvent.BackClicked) },
-        )
-        OdoSegmentedProgress(
+        OdoStepHeader(
             current = FIRST_RUN_STEP,
-            total = FIRST_RUN_TOTAL,
-            contentDescription = stringResource(
+            total = state.firstRunSteps,
+            onBack = { onEvent(CarValueEvent.BackClicked) },
+            backContentDescription = stringResource(Res.string.adv_value_cd_back),
+            progressContentDescription = stringResource(
                 Res.string.adv_value_fr_cd_progress,
                 FIRST_RUN_STEP,
-                FIRST_RUN_TOTAL,
+                state.firstRunSteps,
             ),
         )
 
         Column(
             modifier = Modifier
                 .weight(1f)
-                .verticalScroll(rememberScrollState()),
+                .fadingEdges()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = OdoTheme.spacing.screenEdge)
+                .padding(top = OdoTheme.spacing.md, bottom = OdoTheme.spacing.xl),
             verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
         ) {
-            Spacer(Modifier.height(OdoTheme.spacing.xl))
+            OdoEntrance(0) {
+                Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
+                    if (display.make.isNotBlank()) BrandRow(make = display.make, logoUrl = state.makeLogoUrl)
+                    OdoText(
+                        text = stringResource(Res.string.adv_value_fr_title, display.year, display.shortName),
+                        style = OdoTheme.typography.title.copy(fontSize = 28.sp, lineHeight = 34.sp),
+                        color = OdoTheme.colors.text,
+                    )
+                }
+            }
+            OdoEntrance(1) { ValueDial(display) }
+            // The rest arrives once the needle has settled, so the eye follows it down.
+            if (!display.isRecordComplete) OdoEntrance(AFTER_NEEDLE) { RecordCard(display) }
+            OdoEntrance(AFTER_NEEDLE + 1) {
+                WhyARange(
+                    odometerAssumed = state.odometerAssumed,
+                    onToggled = { onEvent(CarValueEvent.WhyRangeToggled(it)) },
+                )
+            }
+            // Absent, not hidden, when the feature is off, so the layout has no gap.
+            if (state.offerAutoOdometer) OdoEntrance(AFTER_NEEDLE + 2) {
+                AutoOdometerCard(
+                    onTurnOn = { onEvent(CarValueEvent.TurnOnAutoOdometerClicked) },
+                    onSeen = { onEvent(CarValueEvent.AutoOdometerCardSeen) },
+                )
+            }
+        }
 
-            OdoText(
-                text = stringResource(Res.string.adv_value_fr_title, display.shortName),
-                style = OdoTheme.typography.display,
-                color = OdoTheme.colors.text,
+        Column(
+            modifier = Modifier.padding(horizontal = OdoTheme.spacing.screenEdge),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            OdoButton(
+                text = stringResource(Res.string.adv_value_fr_scan),
+                onClick = { onEvent(CarValueEvent.ScanClicked) },
+                modifier = Modifier.fillMaxWidth().accentGlow(),
             )
+            OdoButton(
+                text = stringResource(Res.string.adv_value_fr_skip),
+                onClick = { onEvent(CarValueEvent.SkipClicked) },
+                modifier = Modifier.fillMaxWidth().padding(vertical = OdoTheme.spacing.sm),
+                variant = OdoButtonVariant.Tertiary,
+            )
+        }
+    }
+}
 
-            Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
+/** The dial sweeps to today's band, lights it, then lights the premium in green. */
+@Composable
+private fun ValueDial(display: CarValueDisplay) {
+    val gauge = display.gauge
+    val needle = remember { Animatable(0f) }
+    val reveal = remember { Animatable(0f) }
+    val haptics = LocalHapticFeedback.current
+    val easing = OdoTheme.motion.easeFlow
+    LaunchedEffect(gauge) {
+        needle.animateTo((gauge.bandStart + gauge.bandEnd) / 2, tween(NEEDLE_MILLIS, easing = easing))
+        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        reveal.animateTo(1f, tween(REVEAL_MILLIS))
+    }
+    val idle = OdoTheme.colors.border
+    val band = lerp(idle, OdoTheme.colors.text, reveal.value)
+    val premium = lerp(idle, OdoTheme.colors.success, reveal.value)
+    // The figures start inside the dial's open bottom, where no ticks are drawn.
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+        OdoTickGauge(
+            size = DIAL_SIZE,
+            tickColor = idle,
+            ranges = buildList {
+                add(OdoGaugeRange(gauge.bandStart, gauge.bandEnd, band))
+                if (!display.isRecordComplete) add(OdoGaugeRange(gauge.bandEnd, gauge.premiumEnd, premium))
+            },
+            needle = needle.value,
+        )
+        OdoEntrance(FIGURES, modifier = Modifier.padding(top = DIAL_SIZE * DIAL_TEXT_TOP)) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
+            ) {
                 OdoText(
                     text = stringResource(
                         if (display.hasNoRecord) Res.string.adv_value_fr_today_label
@@ -407,77 +538,145 @@ private fun FirstRunEstimate(
                 )
                 OdoText(
                     text = display.today,
-                    style = OdoTheme.typography.display.copy(fontSize = 44.sp, lineHeight = 48.sp),
+                    style = OdoTheme.typography.display.copy(fontSize = 40.sp, lineHeight = 44.sp),
                     color = OdoTheme.colors.text,
                 )
                 OdoText(
                     text = display.basis,
-                    style = OdoTheme.typography.body,
+                    style = OdoTheme.typography.bodySmall,
                     color = OdoTheme.colors.textDim,
+                    textAlign = TextAlign.Center,
+                )
+                // The honesty label stays in view: without it the band reads as a valuation of this car.
+                OdoText(
+                    text = stringResource(Res.string.adv_value_fr_basis),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textMuted,
+                    textAlign = TextAlign.Center,
                 )
             }
-
-            OdoDivider()
-
-            // Dropped once the record is complete: the gap is zero, and "+Rs. 0" reads as a
-            // bug rather than as an achievement.
-            if (!display.isRecordComplete) OdoCard(
-                color = OdoTheme.colors.surfaceRaised,
-                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
-            ) {
-                OdoText(
-                    text = stringResource(Res.string.adv_value_fr_record_label),
-                    style = OdoTheme.typography.caption,
-                    color = OdoTheme.colors.textDim,
-                )
-                OdoText(
-                    text = display.recordWorth,
-                    style = OdoTheme.typography.display.copy(fontSize = 36.sp, lineHeight = 40.sp),
-                    color = OdoTheme.colors.text,
-                )
-                OdoDivider()
-                OdoText(
-                    text = stringResource(
-                        Res.string.adv_value_fr_record_body,
-                        stringResource(display.billsLogged(), display.provenServices),
-                    ),
-                    style = OdoTheme.typography.body,
-                    color = OdoTheme.colors.text,
-                )
-            }
-
-            OdoText(
-                text = stringResource(Res.string.adv_value_fr_band_note),
-                style = OdoTheme.typography.body,
-                color = OdoTheme.colors.textDim,
-            )
-
-            if (odometerAssumed) OdoText(
-                text = stringResource(Res.string.adv_value_assumed_reading),
-                style = OdoTheme.typography.body,
-                color = OdoTheme.colors.textDim,
-            )
-
-            OdoBadge(text = stringResource(Res.string.adv_value_fr_basis), tone = OdoBadgeTone.Neutral)
-
-            Spacer(Modifier.height(OdoTheme.spacing.lg))
         }
+    }
+}
 
-        OdoButton(
-            text = stringResource(Res.string.adv_value_fr_scan),
-            onClick = { onEvent(CarValueEvent.ScanClicked) },
-            modifier = Modifier.fillMaxWidth().accentGlow(),
+/** The car's logo above the headline; the headline already names the model. */
+@Composable
+private fun BrandRow(make: String, logoUrl: String?) {
+    OdoMakeLogo(
+        make = OdoCarMake(id = make, name = make, logoUrl = logoUrl),
+        width = BRAND_LOGO_WIDTH,
+        height = BRAND_LOGO_HEIGHT,
+    )
+}
+
+/** What a proven record adds, in the dial's green, with the count of bills so far. */
+@Composable
+private fun RecordCard(display: CarValueDisplay) {
+    val success = OdoTheme.colors.success
+    OdoCard(
+        color = success.copy(alpha = 0.10f),
+        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
+    ) {
+        OdoText(
+            text = stringResource(Res.string.adv_value_fr_record_label),
+            style = OdoTheme.typography.caption,
+            color = OdoTheme.colors.textDim,
         )
-        OdoButton(
-            text = stringResource(Res.string.adv_value_fr_skip),
-            onClick = { onEvent(CarValueEvent.SkipClicked) },
-            modifier = Modifier.fillMaxWidth().padding(vertical = OdoTheme.spacing.sm),
-            variant = OdoButtonVariant.Tertiary,
+        OdoText(
+            text = display.recordWorth,
+            style = OdoTheme.typography.display.copy(fontSize = 32.sp, lineHeight = 36.sp),
+            color = success,
+        )
+        OdoText(
+            text = stringResource(
+                Res.string.adv_value_fr_record_body,
+                stringResource(display.billsLogged(), display.provenServices),
+            ),
+            style = OdoTheme.typography.body,
+            color = OdoTheme.colors.text,
         )
     }
 }
 
-/** "0 bills logged" reads better than "no bills", and the plural has to agree. */
+/** The honesty note, folded away: the estimate is a segment average, not this car. */
+@Composable
+private fun WhyARange(odometerAssumed: Boolean, onToggled: (Boolean) -> Unit) {
+    var open by rememberSaveable { mutableStateOf(false) }
+    OdoExpandableRow(
+        title = stringResource(Res.string.adv_value_fr_why),
+        expanded = open,
+        onToggle = {
+            open = !open
+            onToggled(open)
+        },
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+            OdoText(
+                text = stringResource(Res.string.adv_value_fr_band_note),
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.textDim,
+            )
+            if (odometerAssumed) OdoText(
+                text = stringResource(Res.string.adv_value_assumed_reading),
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.textDim,
+            )
+        }
+    }
+}
+
+/** Fades the scrolling body out at its top and bottom edges instead of cutting it. */
+@Composable
+private fun Modifier.fadingEdges(): Modifier {
+    val edge = OdoTheme.spacing.lg
+    return graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            val px = edge.toPx()
+            drawRect(Brush.verticalGradient(listOf(Color.Transparent, Color.Black), endY = px), blendMode = BlendMode.DstIn)
+            drawRect(
+                Brush.verticalGradient(listOf(Color.Black, Color.Transparent), startY = size.height - px, endY = size.height),
+                blendMode = BlendMode.DstIn,
+            )
+        }
+}
+
+/** The first-run offer to log drives automatically. */
+@Composable
+private fun AutoOdometerCard(onTurnOn: () -> Unit, onSeen: () -> Unit) {
+    OdoCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(CarValueTestTags.AUTO_ODO_CARD)
+            // Seen once at least half of it is inside the scrolling viewport.
+            .onGloballyPositioned { coords ->
+                if (coords.boundsInWindow().height >= coords.size.height / 2f) onSeen()
+            },
+        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
+                OdoText(
+                    text = stringResource(Res.string.adv_value_fr_odo_title),
+                    style = OdoTheme.typography.heading,
+                    color = OdoTheme.colors.text,
+                )
+                OdoText(
+                    text = stringResource(Res.string.adv_value_fr_odo_body),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textDim,
+                )
+            }
+            OdoButton(
+                text = stringResource(Res.string.adv_value_fr_odo_cta),
+                onClick = onTurnOn,
+                variant = OdoButtonVariant.Secondary,
+            )
+        }
+    }
+}
+
+/** The bill count under the premium; none gets a nudge instead of a zero. */
 private fun CarValueDisplay.billsLogged() = when (provenServices) {
     0 -> Res.string.adv_value_fr_bills_none
     1 -> Res.string.adv_value_fr_bills_one
@@ -498,6 +697,16 @@ private fun VehicleSegment.label() = when (this) {
     VehicleSegment.MUV -> Res.string.adv_value_fr_segment_muv
 }
 
-/** First run is Welcome, the car step, this screen, then the scan. */
+/** This screen's position in first run, in both variants. */
 private const val FIRST_RUN_STEP = 3
-private const val FIRST_RUN_TOTAL = 4
+
+private val DIAL_SIZE = 200.dp
+private val BRAND_LOGO_WIDTH = 72.dp
+private val BRAND_LOGO_HEIGHT = 40.dp
+private const val DIAL_TEXT_TOP = 0.86f
+private const val NEEDLE_MILLIS = 900
+private const val REVEAL_MILLIS = 400
+
+/** Entrance steps: the figures follow the dial, the cards follow the needle. */
+private const val FIGURES = 4
+private const val AFTER_NEEDLE = 12

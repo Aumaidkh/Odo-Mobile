@@ -46,6 +46,7 @@ import com.hopcape.odo.feature.reminders.resources.rm_row_insurance
 import com.hopcape.odo.feature.reminders.resources.rm_row_licence
 import com.hopcape.odo.feature.reminders.resources.rm_row_puc
 import com.hopcape.odo.feature.reminders.resources.rm_row_service
+import kotlin.time.Clock
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -64,7 +65,6 @@ import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
 import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Clock
 
 /**
  * State holder for the reminders home. Holds [RemindersUiState], consumes
@@ -159,7 +159,7 @@ internal class RemindersViewModel(
         viewModelScope.launch(telemetry.op(OP_SUGGESTION)) {
             val cadence = preset.defaultCadence
             telemetry.reminderSave(
-                cadence = cadence::class.simpleName ?: "",
+                cadence = cadence.analyticsName(),
                 preset = preset.name,
                 viaSuggestion = true,
                 edit = false,
@@ -240,6 +240,15 @@ private fun UpcomingReminder.toRow(today: LocalDate): ReminderRow = when (this) 
         status = urgency.toStatus(),
     )
 
+    // Declared in setup without a paper: same row and tap as the paper would get.
+    is UpcomingReminder.DeclaredRenewal -> ReminderRow(
+        id = ReminderRowId(kind, dismissalKey?.dueOn, customId = null),
+        icon = if (type == DocumentType.PUC) ReminderIcon.LEAF else ReminderIcon.SHIELD,
+        title = RowText.Res(UiText(kind.rowTitle())),
+        line = renewalLine(urgency, daysLeft, expiresOn),
+        status = urgency.toStatus(),
+    )
+
     is UpcomingReminder.ServiceDue -> ReminderRow(
         id = ReminderRowId(kind, dueOn, customId = null),
         icon = ReminderIcon.OIL,
@@ -263,7 +272,9 @@ private fun ReminderKind.rowTitle() = when (this) {
     else -> Res.string.rm_row_insurance
 }
 
-private fun UpcomingReminder.DocumentRenewal.documentLine(): UiText = when {
+private fun UpcomingReminder.DocumentRenewal.documentLine(): UiText = renewalLine(urgency, daysLeft, expiresOn)
+
+private fun renewalLine(urgency: ReminderUrgency, daysLeft: Int, expiresOn: LocalDate): UiText = when {
     urgency == ReminderUrgency.ON_TRACK -> UiText(Res.string.rm_line_valid_till, listOf(formatDate(expiresOn)))
     daysLeft == 0 -> UiText(Res.string.rm_line_due_today, listOf(formatDate(expiresOn)))
     else -> UiText(Res.string.rm_line_due_in_days, listOf(daysLeft, formatDate(expiresOn)))

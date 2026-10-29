@@ -213,7 +213,7 @@ private fun slug(vararg parts: String): String = parts.joinToString("-") { part 
  * mismatch, [seedVehicleReferenceData] replaces every row in `vehicle_make`/`vehicle_model`
  * with what [VEHICLE_SEED] says now.
  */
-private const val CURRENT_SEED_VERSION = 1L
+private const val CURRENT_SEED_VERSION = 2L
 
 /**
  * Populate the picker reference tables from [VEHICLE_SEED], replacing whatever they held
@@ -258,6 +258,7 @@ internal fun seedVehicleReferenceData(database: OdoDatabase) {
                 id = makeId,
                 name = make.name,
                 display_order = makeIndex.toLong(),
+                logo_path = makeId.takeUnless { it in MAKES_WITHOUT_LOGO }?.let { "$LOGO_FOLDER/$it.png" },
             )
             make.models.forEachIndexed { modelIndex, model ->
                 val baseOrder = modelIndex.toLong() * VARIANT_ORDER_SPAN
@@ -284,6 +285,12 @@ internal fun seedVehicleReferenceData(database: OdoDatabase) {
         metaQueries.setSeedVersion(CURRENT_SEED_VERSION)
     }
 }
+
+/** Where the make logos live in Supabase Storage, as `<bucket>/<folder>`. Matches the server catalog. */
+private const val LOGO_FOLDER = "vehicle-logos/makes"
+
+/** Makes with no logo uploaded; they keep the monogram. */
+private val MAKES_WITHOUT_LOGO = setOf("make-premier")
 
 /** Ordering slots reserved per model — one for the trim-less row plus its trims. */
 private const val VARIANT_ORDER_SPAN = 100L

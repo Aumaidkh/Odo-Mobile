@@ -114,7 +114,7 @@ internal class FairnessViewModel(
                 .onSuccess { report ->
                     val content = report.toContent(canReport = input.logId != null && input.carId != null)
                     telemetry.checked(
-                        outcome = report.outcome::class.simpleName.orEmpty(),
+                        outcome = report.outcome.analyticsName(),
                         sampleSize = report.sampleSize,
                         lineCount = report.items.size,
                         benchmarkedLines = report.items.count { it.estimate != null },

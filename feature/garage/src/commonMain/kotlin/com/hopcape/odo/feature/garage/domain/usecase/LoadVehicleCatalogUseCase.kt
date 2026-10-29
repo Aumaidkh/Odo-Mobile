@@ -20,13 +20,16 @@ internal class LoadVehicleCatalogUseCase(
 ) {
     suspend operator fun invoke(): VehicleCatalogSnapshot = VehicleCatalogSnapshot(
         makes = catalog.makes(),
-        popularMakes = catalog.popularMakes(),
+        popularMakes = catalog.popularMakes(CHIP_COUNT),
         years = catalog.years(),
         fuelTypes = catalog.fuelTypes(),
     )
 }
 
 /** Everything the car-detail pickers offer, except the make-dependent model list. */
+/** How many brands get a one-tap chip above the make picker. Four fits a row. */
+private const val CHIP_COUNT = 4
+
 internal data class VehicleCatalogSnapshot(
     val makes: List<String>,
     val popularMakes: List<String>,

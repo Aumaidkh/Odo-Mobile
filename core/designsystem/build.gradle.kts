@@ -20,6 +20,9 @@ kotlin {
             // LocalDate — what OdoDateField hands back. A value type, not domain: the
             // alternative is every caller converting epoch millis at the call site.
             implementation(libs.kotlinx.datetime)
+            // Remote images (make logos from the catalog), fetched over the app's Ktor.
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor3)
         }
     }
 

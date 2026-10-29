@@ -110,6 +110,7 @@ object HAnalytics {
     private object DelegatingTracker : AnalyticsTracker {
         override fun identify(traits: UserTraits) = delegate.identify(traits)
         override fun forget() = delegate.forget()
+        override fun setUserProperty(name: String, value: String) = delegate.setUserProperty(name, value)
         override fun track(eventName: String, properties: Map<String, Any?>) =
             delegate.track(eventName, properties)
 

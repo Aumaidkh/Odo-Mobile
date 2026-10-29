@@ -34,7 +34,7 @@ import com.hopcape.odo.core.designsystem.component.coachMarkAnchor
 import com.hopcape.odo.core.designsystem.icons.IcCamera
 import com.hopcape.odo.core.designsystem.icons.IcCar
 import com.hopcape.odo.core.designsystem.icons.IcClock
-import com.hopcape.odo.core.designsystem.icons.IcCurrencyDollar
+import com.hopcape.odo.core.designsystem.icons.IcRupee
 import com.hopcape.odo.core.designsystem.icons.IcGarage
 import com.hopcape.odo.core.designsystem.icons.IcHouse
 import com.hopcape.odo.core.designsystem.icons.IcWindow
@@ -178,7 +178,7 @@ private fun ScanTile(
 private fun iconForTab(tab: OdoDestination.TopLevel): ImageVector = when (tab) {
     OdoDestination.Home -> IcHouse
     OdoDestination.Timeline.List -> IcClock
-    OdoDestination.CostTracker.Home -> IcCurrencyDollar
+    OdoDestination.CostTracker.Home -> IcRupee
     OdoDestination.Garage.Home -> IcGarage
     else -> IcWindow
 }

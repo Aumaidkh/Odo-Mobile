@@ -13,11 +13,27 @@ import com.hopcape.odo.feature.onboarding.presentation.video.WelcomeVideoTelemet
  * `:feature:questionnaire`.
  */
 val onboardingAnalyticsEvents: List<EventSchema> = listOf(
-    EventSchema(OnboardingTelemetry.Event.WELCOME_SHOWN),
-    EventSchema(OnboardingTelemetry.Event.WELCOME_COMPLETED),
+    EventSchema(
+        OnboardingTelemetry.Event.WELCOME_SHOWN,
+        optionalProperties = mapOf(OnboardingTelemetry.Key.VARIANT to PropertyType.STRING),
+    ),
+    EventSchema(
+        OnboardingTelemetry.Event.WELCOME_COMPLETED,
+        optionalProperties = mapOf(
+            OnboardingTelemetry.Key.MAKE_SOURCE to PropertyType.STRING,
+            OnboardingTelemetry.Key.MAKE to PropertyType.STRING,
+        ),
+    ),
     // Declared late: it was named in `Event` but never here, so strict validation dropped it
     // in exactly the builds where the funnel gets checked.
     EventSchema(OnboardingTelemetry.Event.WELCOME_SIGN_IN),
+    EventSchema(OnboardingTelemetry.Event.MAKE_OTHER_OPENED),
+    EventSchema(OnboardingTelemetry.Event.MAKE_OTHER_DISMISSED),
+    EventSchema(
+        OnboardingTelemetry.Event.RESUMED,
+        mapOf(OnboardingTelemetry.Key.STEP to PropertyType.STRING),
+    ),
+    EventSchema(OnboardingTelemetry.Event.RESUME_RESET),
     EventSchema(
         OnboardingTelemetry.Event.LEGAL_OPENED,
         mapOf(OnboardingTelemetry.Key.DOCUMENT to PropertyType.STRING),
