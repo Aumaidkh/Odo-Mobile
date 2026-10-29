@@ -10,6 +10,7 @@ import com.hopcape.odo.feature.garage.presentation.GarageTelemetry
 import com.hopcape.odo.feature.garage.presentation.state.Submission
 import com.hopcape.odo.feature.garage.resources.Res
 import com.hopcape.odo.feature.garage.resources.gr_error_save_failed
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -43,11 +45,22 @@ internal class RestoredHistoryViewModel(
     /** Counted once, not on every re-emission of the same restore as its counts settle. */
     private var reported = false
 
+    /** Closes the sheet when the restore turns out to have brought nothing back. */
+    private var emptyTimeout: Job? = null
+
     init {
         viewModelScope.launch {
             observeRestored()
                 .catch { cause -> telemetry.readFailed(GarageTelemetry.Screen.HISTORY_RESTORED, cause) }
                 .collect { history ->
+                    emptyTimeout?.cancel()
+                    if (history == null) {
+                        emptyTimeout = viewModelScope.launch {
+                            delay(EMPTY_RESTORE_GRACE_MS)
+                            acknowledge()
+                            _effects.send(RestoredHistoryEffect.Dismiss)
+                        }
+                    }
                     if (history != null && !reported) {
                         reported = true
                         telemetry.historyRestoredShown(
@@ -105,5 +118,10 @@ internal class RestoredHistoryViewModel(
             acknowledge()
             _effects.send(effect)
         }
+    }
+
+    private companion object {
+        /** The records land in the pull after the marker; past this, there are none. */
+        const val EMPTY_RESTORE_GRACE_MS = 4_000L
     }
 }
